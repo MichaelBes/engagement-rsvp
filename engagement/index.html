@@ -422,7 +422,7 @@
   // PASTE YOUR ACTUAL PUBLISHED WIX PAGE URL HERE — this ensures personal
   // links point to your real site, not Wix's internal file storage address.
   // Example: "https://yourname.wixsite.com/engagement-rsvp"
-  const SITE_URL = "https://maroandgeorge.com/engagement/";
+  const SITE_URL = "https://MaroandGeorge.com/engagement/";
 
   const params = new URLSearchParams(window.location.search);
   const hash = window.location.hash || '';
@@ -886,32 +886,6 @@
     const maybeCount = rsvps.filter(r => r.response === 'maybe').length;
     const noCount = rsvps.filter(r => r.response === 'no').length;
 
-    const guestRows = guests.map(g => {
-      const link = baseUrl() + '?g=' + g.id;
-      return `
-        <tr>
-          <td>${esc(g.name || '')}</td>
-          <td>${esc(g.phone || '')}</td>
-          <td><span class="copy-link" data-link="${esc(link)}">${esc(link)}</span></td>
-        </tr>
-      `;
-    }).join('');
-
-    const rsvpRows = rsvps.map(r => {
-      let status = '<span class="pill no">No</span>';
-      if (r.response === 'yes') status = `<span class="pill yes">Yes · ${r.adults||1}A${r.kids ? ' / ' + r.kids + 'K' : ''}</span>`;
-      else if (r.response === 'maybe') status = `<span class="pill maybe">Maybe</span>`;
-      const message = r.message ? esc(r.message) : '';
-      return `
-        <tr>
-          <td>${esc(r.name)}</td>
-          <td>${esc(r.email || '')}</td>
-          <td>${status}</td>
-          <td style="max-width:160px;font-style:italic;color:#6b6858;">${message}</td>
-        </tr>
-      `;
-    }).join('');
-
     app.innerHTML = `
       <div class="admin-wrap">
         <h1>Guest List &amp; RSVPs</h1>
@@ -926,27 +900,213 @@
         </div>
 
         <div class="admin-section">
-          <h2>RSVP Responses (${rsvps.length})</h2>
-          <div style="font-size:12.5px;color:#8b8778;margin-bottom:8px;">This is an open invite, so responses are matched by whatever name each guest typed in — not linked to a specific person on your phone list below.</div>
+          <div style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:10px;">
+            <h2 style="margin-bottom:0;">RSVP Responses (${rsvps.length})</h2>
+            <input type="text" id="rsvpSearch" placeholder="Search name or email…" style="padding:8px 12px;border-radius:8px;border:1.5px solid #ddd6c4;font-size:13px;min-width:200px;" />
+          </div>
+          <div style="font-size:12.5px;color:#8b8778;margin:8px 0;">This is an open invite, so responses are matched by whatever name each guest typed in — not linked to a specific person on your phone list below.</div>
           <table class="guest-table">
             <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Message</th></tr></thead>
-            <tbody>${rsvpRows || '<tr><td colspan="4" style="color:#8b8778;">No responses yet.</td></tr>'}</tbody>
+            <tbody id="rsvpTableBody"></tbody>
           </table>
+          <div id="rsvpPagination" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:14px;"></div>
         </div>
 
         <div class="admin-section">
-          <h2>Phone List &amp; Personal Links (for texting)</h2>
-          <div style="font-size:12.5px;color:#8b8778;margin-bottom:8px;">One per line: <code>Name, Phone</code> (phone in E.164 format e.g. +13125551234). Each person gets their own personal link with their name pre-filled. You can also just share the general invite link (no personal link needed) with anyone else — both work.</div>
+          <div style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:10px;">
+            <h2 style="margin-bottom:0;">Phone List &amp; Personal Links (for texting)</h2>
+            <input type="text" id="guestSearch" placeholder="Search name or phone…" style="padding:8px 12px;border-radius:8px;border:1.5px solid #ddd6c4;font-size:13px;min-width:200px;" />
+          </div>
+          <div style="font-size:12.5px;color:#8b8778;margin:8px 0;">One per line: <code>Name, Phone</code> (phone in E.164 format e.g. +13125551234). Each person gets their own personal link with their name pre-filled. You can also just share the general invite link (no personal link needed) with anyone else — both work.</div>
           <textarea class="bulk" id="bulkInput" placeholder="Mina Fahmy, +13125551234&#10;Sarah Boutros, +17735559876"></textarea>
           <button class="admin-btn" id="addBtn">Add to phone list</button>
           <button class="admin-btn secondary" id="csvBtn">Export CSV for texting script</button>
           <table class="guest-table" style="margin-top:16px;">
             <thead><tr><th>Name</th><th>Phone</th><th>Personal Link</th></tr></thead>
-            <tbody>${guestRows || '<tr><td colspan="3" style="color:#8b8778;">No one added yet.</td></tr>'}</tbody>
+            <tbody id="guestTableBody"></tbody>
           </table>
+          <div id="guestPagination" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:14px;"></div>
         </div>
       </div>
     `;
+
+    // ---------- Guest table: search + pagination (client-side) ----------
+    let guestSearchTerm = '';
+    let guestPageSize = 10; // 10 | 20 | 50 | 'all'
+    let guestPage = 1;
+
+    function getFilteredGuests(){
+      if (!guestSearchTerm) return guests;
+      const term = guestSearchTerm.toLowerCase();
+      return guests.filter(g =>
+        (g.name || '').toLowerCase().includes(term) ||
+        (g.phone || '').toLowerCase().includes(term)
+      );
+    }
+
+    function renderGuestTable(){
+      const filtered = getFilteredGuests();
+      const pageSize = guestPageSize === 'all' ? filtered.length || 1 : guestPageSize;
+      const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+      if (guestPage > totalPages) guestPage = totalPages;
+      if (guestPage < 1) guestPage = 1;
+
+      const start = guestPageSize === 'all' ? 0 : (guestPage - 1) * pageSize;
+      const end = guestPageSize === 'all' ? filtered.length : start + pageSize;
+      const pageItems = filtered.slice(start, end);
+
+      const rowsHtml = pageItems.map(g => {
+        const link = baseUrl() + '?g=' + g.id;
+        return `
+          <tr>
+            <td>${esc(g.name || '')}</td>
+            <td>${esc(g.phone || '')}</td>
+            <td><span class="copy-link" data-link="${esc(link)}">${esc(link)}</span></td>
+          </tr>
+        `;
+      }).join('');
+
+      document.getElementById('guestTableBody').innerHTML = rowsHtml ||
+        `<tr><td colspan="3" style="color:#8b8778;">${guests.length ? 'No matches found.' : 'No one added yet.'}</td></tr>`;
+
+      const rangeStart = filtered.length ? start + 1 : 0;
+      const rangeEnd = Math.min(end, filtered.length);
+
+      document.getElementById('guestPagination').innerHTML = `
+        <div style="font-size:12.5px;color:#8b8778;">
+          Showing ${rangeStart}-${rangeEnd} of ${filtered.length}${guestSearchTerm ? ` (filtered from ${guests.length})` : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <label style="font-size:12.5px;color:#8b8778;">Per page:
+            <select id="guestPageSizeSelect" style="margin-left:4px;padding:4px 6px;border-radius:6px;border:1.5px solid #ddd6c4;">
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+              <option value="all">All</option>
+            </select>
+          </label>
+          <button type="button" id="guestPrevBtn" class="admin-btn secondary" style="margin-top:0;padding:6px 12px;" ${guestPage<=1?'disabled':''}>Prev</button>
+          <span style="font-size:12.5px;color:#8b8778;">Page ${guestPage} of ${totalPages}</span>
+          <button type="button" id="guestNextBtn" class="admin-btn secondary" style="margin-top:0;padding:6px 12px;" ${guestPage>=totalPages?'disabled':''}>Next</button>
+        </div>
+      `;
+
+      document.getElementById('guestPageSizeSelect').value = String(guestPageSize);
+      document.getElementById('guestPageSizeSelect').addEventListener('change', (e) => {
+        guestPageSize = e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10);
+        guestPage = 1;
+        renderGuestTable();
+      });
+      document.getElementById('guestPrevBtn').addEventListener('click', () => {
+        if (guestPage > 1){ guestPage--; renderGuestTable(); }
+      });
+      document.getElementById('guestNextBtn').addEventListener('click', () => {
+        guestPage++; renderGuestTable();
+      });
+
+      document.querySelectorAll('.copy-link').forEach(el => {
+        el.addEventListener('click', () => {
+          navigator.clipboard.writeText(el.dataset.link);
+          el.innerText = 'Copied!';
+          setTimeout(() => { el.innerText = el.dataset.link; }, 1000);
+        });
+      });
+    }
+
+    renderGuestTable();
+
+    document.getElementById('guestSearch').addEventListener('input', (e) => {
+      guestSearchTerm = e.target.value.trim();
+      guestPage = 1;
+      renderGuestTable();
+    });
+
+    // ---------- RSVP Responses table: search + pagination (client-side) ----------
+    let rsvpSearchTerm = '';
+    let rsvpPageSize = 10;
+    let rsvpPageNum = 1;
+
+    function getFilteredRsvps(){
+      if (!rsvpSearchTerm) return rsvps;
+      const term = rsvpSearchTerm.toLowerCase();
+      return rsvps.filter(r =>
+        (r.name || '').toLowerCase().includes(term) ||
+        (r.email || '').toLowerCase().includes(term)
+      );
+    }
+
+    function renderRsvpTable(){
+      const filtered = getFilteredRsvps();
+      const pageSize = rsvpPageSize === 'all' ? filtered.length || 1 : rsvpPageSize;
+      const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+      if (rsvpPageNum > totalPages) rsvpPageNum = totalPages;
+      if (rsvpPageNum < 1) rsvpPageNum = 1;
+
+      const start = rsvpPageSize === 'all' ? 0 : (rsvpPageNum - 1) * pageSize;
+      const end = rsvpPageSize === 'all' ? filtered.length : start + pageSize;
+      const pageItems = filtered.slice(start, end);
+
+      const rowsHtml = pageItems.map(r => {
+        let status = '<span class="pill no">No</span>';
+        if (r.response === 'yes') status = `<span class="pill yes">Yes · ${r.adults||1}A${r.kids ? ' / ' + r.kids + 'K' : ''}</span>`;
+        else if (r.response === 'maybe') status = `<span class="pill maybe">Maybe</span>`;
+        const message = r.message ? esc(r.message) : '';
+        return `
+          <tr>
+            <td>${esc(r.name)}</td>
+            <td>${esc(r.email || '')}</td>
+            <td>${status}</td>
+            <td style="max-width:160px;font-style:italic;color:#6b6858;">${message}</td>
+          </tr>
+        `;
+      }).join('');
+
+      document.getElementById('rsvpTableBody').innerHTML = rowsHtml ||
+        `<tr><td colspan="4" style="color:#8b8778;">${rsvps.length ? 'No matches found.' : 'No responses yet.'}</td></tr>`;
+
+      const rangeStart = filtered.length ? start + 1 : 0;
+      const rangeEnd = Math.min(end, filtered.length);
+
+      document.getElementById('rsvpPagination').innerHTML = `
+        <div style="font-size:12.5px;color:#8b8778;">
+          Showing ${rangeStart}-${rangeEnd} of ${filtered.length}${rsvpSearchTerm ? ` (filtered from ${rsvps.length})` : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <label style="font-size:12.5px;color:#8b8778;">Per page:
+            <select id="rsvpPageSizeSelect" style="margin-left:4px;padding:4px 6px;border-radius:6px;border:1.5px solid #ddd6c4;">
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+              <option value="all">All</option>
+            </select>
+          </label>
+          <button type="button" id="rsvpPrevBtn" class="admin-btn secondary" style="margin-top:0;padding:6px 12px;" ${rsvpPageNum<=1?'disabled':''}>Prev</button>
+          <span style="font-size:12.5px;color:#8b8778;">Page ${rsvpPageNum} of ${totalPages}</span>
+          <button type="button" id="rsvpNextBtn" class="admin-btn secondary" style="margin-top:0;padding:6px 12px;" ${rsvpPageNum>=totalPages?'disabled':''}>Next</button>
+        </div>
+      `;
+
+      document.getElementById('rsvpPageSizeSelect').value = String(rsvpPageSize);
+      document.getElementById('rsvpPageSizeSelect').addEventListener('change', (e) => {
+        rsvpPageSize = e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10);
+        rsvpPageNum = 1;
+        renderRsvpTable();
+      });
+      document.getElementById('rsvpPrevBtn').addEventListener('click', () => {
+        if (rsvpPageNum > 1){ rsvpPageNum--; renderRsvpTable(); }
+      });
+      document.getElementById('rsvpNextBtn').addEventListener('click', () => {
+        rsvpPageNum++; renderRsvpTable();
+      });
+    }
+
+    renderRsvpTable();
+
+    document.getElementById('rsvpSearch').addEventListener('input', (e) => {
+      rsvpSearchTerm = e.target.value.trim();
+      rsvpPageNum = 1;
+      renderRsvpTable();
+    });
 
     document.getElementById('addBtn').addEventListener('click', async () => {
       const raw = document.getElementById('bulkInput').value;
@@ -975,14 +1135,6 @@
       a.href = url; a.download = 'guests_for_texting.csv';
       a.click();
       URL.revokeObjectURL(url);
-    });
-
-    document.querySelectorAll('.copy-link').forEach(el => {
-      el.addEventListener('click', () => {
-        navigator.clipboard.writeText(el.dataset.link);
-        el.innerText = 'Copied!';
-        setTimeout(() => { el.innerText = el.dataset.link; }, 1000);
-      });
     });
   }
 
