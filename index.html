@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Maro & George</title>
+<script>
+  // Forward to /engagement/, preserving any ?g=... or other query string
+  // so personalized links still work even if someone strips the path.
+  var target = "/engagement/" + window.location.search + window.location.hash;
+  window.location.replace(target);
+</script>
+<meta http-equiv="refresh" content="0; url=/engagement/">
+</head>
+<body>
+  <p>Redirecting to <a href="/engagement/">the invitation</a>...</p>
+</body>
+</html>
