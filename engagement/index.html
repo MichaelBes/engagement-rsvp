@@ -523,6 +523,13 @@
     return Math.random().toString(36).slice(2, 8);
   }
 
+  function displayLink(url){
+    // Strips the protocol for a cleaner-looking link — most messaging apps
+    // (iMessage, Android Messages) still auto-detect and hyperlink a bare
+    // domain like "MaroandGeorge.com/..." without needing "https://" shown.
+    return url.replace(/^https?:\/\//i, '');
+  }
+
   function baseUrl(){
     // Prefer an explicitly configured public URL if you've set one (most reliable).
     if (SITE_URL && SITE_URL !== "PASTE_YOUR_PUBLISHED_WIX_URL_HERE"){
@@ -957,11 +964,12 @@
 
       const rowsHtml = pageItems.map(g => {
         const link = baseUrl() + '?g=' + g.id;
+        const shownLink = displayLink(link);
         return `
           <tr>
             <td>${esc(g.name || '')}</td>
             <td>${esc(g.phone || '')}</td>
-            <td><span class="copy-link" data-link="${esc(link)}">${esc(link)}</span></td>
+            <td><span class="copy-link" data-link="${esc(shownLink)}">${esc(shownLink)}</span></td>
           </tr>
         `;
       }).join('');
@@ -1126,7 +1134,7 @@
     document.getElementById('csvBtn').addEventListener('click', () => {
       const csvRows = [['name','phone','link']];
       guests.forEach(g => {
-        csvRows.push([g.name || '', g.phone || '', baseUrl() + '?g=' + g.id]);
+        csvRows.push([g.name || '', g.phone || '', displayLink(baseUrl() + '?g=' + g.id)]);
       });
       const csv = csvRows.map(r => r.map(c => '"' + String(c).replace(/"/g,'""') + '"').join(',')).join('\n');
       const blob = new Blob([csv], { type: 'text/csv' });
