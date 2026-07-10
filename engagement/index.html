@@ -924,7 +924,7 @@
             <h2 style="margin-bottom:0;">Phone List &amp; Personal Links (for texting)</h2>
             <input type="text" id="guestSearch" placeholder="Search name or phone…" style="padding:8px 12px;border-radius:8px;border:1.5px solid #ddd6c4;font-size:13px;min-width:200px;" />
           </div>
-          <div style="font-size:12.5px;color:#8b8778;margin:8px 0;">One per line: <code>Name, Phone</code> (phone in E.164 format e.g. +13125551234). Each person gets their own personal link with their name pre-filled. You can also just share the general invite link (no personal link needed) with anyone else — both work.</div>
+          <div style="font-size:12.5px;color:#8b8778;margin:8px 0;">One per line: <code>Name, Phone</code> (phone in E.164 format e.g. +13125551234). You can also select and copy two columns (Name, Phone) directly from a spreadsheet and paste them here — that works too. Each person gets their own personal link with their name pre-filled. You can also just share the general invite link (no personal link needed) with anyone else — both work.</div>
           <textarea class="bulk" id="bulkInput" placeholder="Mina Fahmy, +13125551234&#10;Sarah Boutros, +17735559876"></textarea>
           <button class="admin-btn" id="addBtn">Add to phone list</button>
           <button class="admin-btn secondary" id="csvBtn">Export CSV for texting script</button>
@@ -1121,7 +1121,10 @@
       const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
       const newGuests = [];
       for (const line of lines){
-        const [name, phone] = line.split(',').map(s => (s||'').trim());
+        // Supports pasting directly from a spreadsheet (tab-separated columns)
+        // as well as manually typed "Name, Phone" lines (comma-separated).
+        const separator = line.includes('\t') ? '\t' : ',';
+        const [name, phone] = line.split(separator).map(s => (s||'').trim());
         if (!name) continue;
         newGuests.push({ name, phone: phone || '' });
       }
