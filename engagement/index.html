@@ -417,7 +417,7 @@
   const ADMIN_PASSCODE = "MaroGeorge2026"; // change this to something only you know
 
   // PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE (see SETUP_INSTRUCTIONS.md)
-  const API_URL = "https://script.google.com/macros/s/AKfycbwzEPctYkISweBpnYKHBXpvk7RMCM7xiQxYgI-xnmEOZ7p2wjqDUm_Xfa7d4DcCro-T/exec";
+  const API_URL = "PASTE_YOUR_WEB_APP_URL_HERE";
 
   // PASTE YOUR ACTUAL PUBLISHED WIX PAGE URL HERE — this ensures personal
   // links point to your real site, not Wix's internal file storage address.
@@ -668,6 +668,9 @@
       return;
     }
     currentGuestId = id;
+    // Fire-and-forget: records the first time this guest opens their link.
+    // Never awaited/blocking — a failure here should never affect the page.
+    apiPost('logView', { id: id }).catch(() => {});
     let bodyHTML = headerHTML() + detailsHTML();
     bodyHTML += rsvp ? renderSummary(rsvp) : renderForm(guest.name, null);
     bodyHTML += footerHTML();
@@ -884,7 +887,7 @@
 
   async function renderAdmin(){
     app.innerHTML = `<div class="loading">Loading guest list…</div>`;
-    const guests = await listGuests();
+    let guests = await listGuests();
 
     const rsvpEntries = await listRSVPs();
     const rsvps = rsvpEntries.map(e => e.record);
@@ -929,8 +932,14 @@
           <textarea class="bulk" id="bulkInput" placeholder="Mina Fahmy, +13125551234&#10;Sarah Boutros, +17735559876"></textarea>
           <button class="admin-btn" id="addBtn">Add to phone list</button>
           <button class="admin-btn secondary" id="csvBtn">Export CSV for texting script</button>
+          <button class="admin-btn secondary" id="markTextedBtn">Mark selected as already texted</button>
+          <label style="font-size:12.5px;color:#8b8778;margin-left:12px;">
+            <input type="checkbox" id="includeTextedCheckbox" style="vertical-align:middle;" />
+            Include already-texted guests
+          </label>
+          <div style="font-size:12px;color:#8b8778;margin-top:6px;">Use this if you already texted people manually or with an older version of the script — check the box next to their name below, then click "Mark selected as already texted" so future exports skip them automatically.</div>
           <table class="guest-table" style="margin-top:16px;">
-            <thead><tr><th>Name</th><th>Phone</th><th>Personal Link</th></tr></thead>
+            <thead><tr><th><input type="checkbox" id="selectAllGuests" /></th><th>Name</th><th>Phone</th><th>Status</th><th>Personal Link</th></tr></thead>
             <tbody id="guestTableBody"></tbody>
           </table>
           <div id="guestPagination" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:14px;"></div>
@@ -942,6 +951,7 @@
     let guestSearchTerm = '';
     let guestPageSize = 10; // 10 | 20 | 50 | 'all'
     let guestPage = 1;
+    let selectedGuestIds = new Set(); // persists across pagination/search
 
     function getFilteredGuests(){
       if (!guestSearchTerm) return guests;
@@ -966,17 +976,23 @@
       const rowsHtml = pageItems.map(g => {
         const link = baseUrl() + '?g=' + g.id;
         const shownLink = displayLink(link);
+        let status = '<span class="pill pending">Not sent</span>';
+        if (g.textedAt) status = '<span class="pill yes">Texted</span>';
+        if (g.textedAt && g.viewedAt) status = '<span class="pill yes">Texted · Opened</span>';
+        const checked = selectedGuestIds.has(g.id) ? 'checked' : '';
         return `
           <tr>
+            <td><input type="checkbox" class="guestRowCheckbox" data-id="${esc(g.id)}" ${checked} /></td>
             <td>${esc(g.name || '')}</td>
             <td>${esc(g.phone || '')}</td>
+            <td>${status}</td>
             <td><span class="copy-link" data-link="${esc(shownLink)}">${esc(shownLink)}</span></td>
           </tr>
         `;
       }).join('');
 
       document.getElementById('guestTableBody').innerHTML = rowsHtml ||
-        `<tr><td colspan="3" style="color:#8b8778;">${guests.length ? 'No matches found.' : 'No one added yet.'}</td></tr>`;
+        `<tr><td colspan="5" style="color:#8b8778;">${guests.length ? 'No matches found.' : 'No one added yet.'}</td></tr>`;
 
       const rangeStart = filtered.length ? start + 1 : 0;
       const rangeEnd = Math.min(end, filtered.length);
@@ -1020,6 +1036,28 @@
           setTimeout(() => { el.innerText = el.dataset.link; }, 1000);
         });
       });
+
+      document.querySelectorAll('.guestRowCheckbox').forEach(cb => {
+        cb.addEventListener('change', () => {
+          if (cb.checked) selectedGuestIds.add(cb.dataset.id);
+          else selectedGuestIds.delete(cb.dataset.id);
+        });
+      });
+
+      const selectAllBox = document.getElementById('selectAllGuests');
+      if (selectAllBox){
+        // Reflects whether every guest matching the current search is selected
+        // (spans all pages, not just the visible one).
+        selectAllBox.checked = filtered.length > 0 && filtered.every(g => selectedGuestIds.has(g.id));
+        selectAllBox.onchange = () => {
+          if (selectAllBox.checked){
+            filtered.forEach(g => selectedGuestIds.add(g.id));
+          } else {
+            filtered.forEach(g => selectedGuestIds.delete(g.id));
+          }
+          renderGuestTable();
+        };
+      }
     }
 
     renderGuestTable();
@@ -1136,9 +1174,11 @@
     });
 
     document.getElementById('csvBtn').addEventListener('click', () => {
-      const csvRows = [['name','phone','link']];
-      guests.forEach(g => {
-        csvRows.push([g.name || '', g.phone || '', displayLink(baseUrl() + '?g=' + g.id)]);
+      const includeTexted = document.getElementById('includeTextedCheckbox').checked;
+      const exportList = includeTexted ? guests : guests.filter(g => !g.textedAt);
+      const csvRows = [['id','name','phone','link']];
+      exportList.forEach(g => {
+        csvRows.push([g.id, g.name || '', g.phone || '', displayLink(baseUrl() + '?g=' + g.id)]);
       });
       const csv = csvRows.map(r => r.map(c => '"' + String(c).replace(/"/g,'""') + '"').join(',')).join('\n');
       const blob = new Blob([csv], { type: 'text/csv' });
@@ -1147,6 +1187,20 @@
       a.href = url; a.download = 'guests_for_texting.csv';
       a.click();
       URL.revokeObjectURL(url);
+    });
+
+    document.getElementById('markTextedBtn').addEventListener('click', async () => {
+      const ids = Array.from(selectedGuestIds);
+      if (!ids.length){
+        alert('No one is selected. Check the box next to each person you already texted, then click this button.');
+        return;
+      }
+      const confirmed = confirm(`Mark ${ids.length} selected guest(s) as already texted? They'll be skipped automatically in future CSV exports.`);
+      if (!confirmed) return;
+      await apiPost('markTexted', { ids });
+      selectedGuestIds.clear();
+      guests = await listGuests();
+      renderGuestTable();
     });
   }
 
