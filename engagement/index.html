@@ -381,6 +381,32 @@
     color:#8b8778; padding: 8px 6px; border-bottom: 1.5px solid #eee6d4;
   }
   table.guest-table td{ padding: 9px 6px; border-bottom: 1px solid #f0ebdd; vertical-align: top; }
+
+  /* Mobile: turn each table row into a stacked "card" instead of a squished
+     horizontally-scrolling table, so everything is readable without pinching/scrolling. */
+  @media (max-width: 640px) {
+    table.guest-table thead{
+      position: absolute; width: 1px; height: 1px; overflow: hidden;
+      clip: rect(0,0,0,0); white-space: nowrap; border: 0; padding: 0; margin: -1px;
+    }
+    table.guest-table, table.guest-table tbody, table.guest-table tr, table.guest-table td{
+      display: block; width: 100%;
+    }
+    table.guest-table tr{
+      background: #fff; border: 1px solid #eee6d4; border-radius: 10px;
+      padding: 10px 12px; margin-bottom: 12px;
+    }
+    table.guest-table td{
+      border-bottom: none; padding: 6px 0; display: flex; justify-content: space-between;
+      align-items: flex-start; gap: 12px; text-align: right;
+    }
+    table.guest-table td::before{
+      content: attr(data-label); font-size: 10.5px; text-transform: uppercase;
+      letter-spacing: 0.08em; color: #8b8778; font-weight: 700; text-align: left;
+      flex-shrink: 0;
+    }
+    table.guest-table .copy-link{ text-align: right; }
+  }
   .pill{ padding:3px 9px; border-radius:20px; font-size:11px; font-weight:700; }
   .pill.yes{ background:#EFE6E8; color:var(--wine); }
   .pill.no{ background:#E7E9F0; color:var(--indigo); }
@@ -586,10 +612,10 @@
 
   function footerHTML(){
     return `
-      <div style="margin-top:26px;padding-top:16px;border-top:1px solid #eee6d4;text-align:center;">
-        <button type="button" id="editRsvpLink" style="background:none;border:none;font-family:'Inter',sans-serif;font-size:12px;color:var(--wine);cursor:pointer;text-decoration:underline;margin-right:16px;">Edit RSVP</button>
-        <button type="button" id="orgLink" style="background:none;border:none;font-family:'Inter',sans-serif;font-size:11.5px;color:#b8b2a0;cursor:pointer;text-decoration:underline;margin-right:16px;">Event organizers</button>
-        <a href="/privacy/" style="font-family:'Inter',sans-serif;font-size:11.5px;color:#b8b2a0;text-decoration:underline;">Privacy Policy</a>
+      <div style="margin-top:26px;padding-top:16px;border-top:1px solid #eee6d4;text-align:center;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px 16px;">
+        <button type="button" id="editRsvpLink" style="background:none;border:none;font-family:'Inter',sans-serif;font-size:12px;color:var(--wine);cursor:pointer;text-decoration:underline;white-space:nowrap;">Edit RSVP</button>
+        <button type="button" id="orgLink" style="background:none;border:none;font-family:'Inter',sans-serif;font-size:11.5px;color:#b8b2a0;cursor:pointer;text-decoration:underline;white-space:nowrap;">Event organizers</button>
+        <a href="/privacy/" style="font-family:'Inter',sans-serif;font-size:11.5px;color:#b8b2a0;text-decoration:underline;white-space:nowrap;">Privacy Policy</a>
       </div>
     `;
   }
@@ -983,11 +1009,11 @@
         const checked = selectedGuestIds.has(g.id) ? 'checked' : '';
         return `
           <tr>
-            <td><input type="checkbox" class="guestRowCheckbox" data-id="${esc(g.id)}" ${checked} /></td>
-            <td>${esc(g.name || '')}</td>
-            <td>${esc(g.phone || '')}</td>
-            <td>${status}</td>
-            <td><span class="copy-link" data-link="${esc(shownLink)}">${esc(shownLink)}</span></td>
+            <td data-label="Select"><input type="checkbox" class="guestRowCheckbox" data-id="${esc(g.id)}" ${checked} /></td>
+            <td data-label="Name">${esc(g.name || '')}</td>
+            <td data-label="Phone">${esc(g.phone || '')}</td>
+            <td data-label="Status">${status}</td>
+            <td data-label="Personal Link"><span class="copy-link" data-link="${esc(shownLink)}">${esc(shownLink)}</span></td>
           </tr>
         `;
       }).join('');
@@ -1101,10 +1127,10 @@
         const message = r.message ? esc(r.message) : '';
         return `
           <tr>
-            <td>${esc(r.name)}</td>
-            <td>${esc(r.email || '')}</td>
-            <td>${status}</td>
-            <td style="max-width:160px;font-style:italic;color:#6b6858;">${message}</td>
+            <td data-label="Name">${esc(r.name)}</td>
+            <td data-label="Email">${esc(r.email || '')}</td>
+            <td data-label="Status">${status}</td>
+            <td data-label="Message" style="max-width:160px;font-style:italic;color:#6b6858;">${message}</td>
           </tr>
         `;
       }).join('');
