@@ -417,7 +417,7 @@
   const ADMIN_PASSCODE = "MaroGeorge2026"; // change this to something only you know
 
   // PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE (see SETUP_INSTRUCTIONS.md)
-  const API_URL = "https://script.google.com/macros/s/AKfycbwzEPctYkISweBpnYKHBXpvk7RMCM7xiQxYgI-xnmEOZ7p2wjqDUm_Xfa7d4DcCro-T/exec";
+  const API_URL = "PASTE_YOUR_WEB_APP_URL_HERE";
 
   // PASTE YOUR ACTUAL PUBLISHED WIX PAGE URL HERE — this ensures personal
   // links point to your real site, not Wix's internal file storage address.
@@ -933,6 +933,7 @@
           <button class="admin-btn" id="addBtn">Add to phone list</button>
           <button class="admin-btn secondary" id="csvBtn">Export CSV for texting script</button>
           <button class="admin-btn secondary" id="markTextedBtn">Mark selected as already texted</button>
+          <button class="admin-btn secondary" id="reminderCsvBtn">Export reminder list (texted, no RSVP yet)</button>
           <label style="font-size:12.5px;color:#8b8778;margin-left:12px;">
             <input type="checkbox" id="includeTextedCheckbox" style="vertical-align:middle;" />
             Include already-texted guests
@@ -1201,6 +1202,28 @@
       selectedGuestIds.clear();
       guests = await listGuests();
       renderGuestTable();
+    });
+
+    document.getElementById('reminderCsvBtn').addEventListener('click', () => {
+      const respondedIds = new Set(rsvps.map(r => r.id));
+      const reminderList = guests.filter(g => g.textedAt && !respondedIds.has(g.id));
+
+      if (!reminderList.length){
+        alert('No one matches: everyone already texted has either responded, or no one has been texted yet.');
+        return;
+      }
+
+      const csvRows = [['id','name','phone','link']];
+      reminderList.forEach(g => {
+        csvRows.push([g.id, g.name || '', g.phone || '', displayLink(baseUrl() + '?g=' + g.id)]);
+      });
+      const csv = csvRows.map(r => r.map(c => '"' + String(c).replace(/"/g,'""') + '"').join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'reminder_list.csv';
+      a.click();
+      URL.revokeObjectURL(url);
     });
   }
 
