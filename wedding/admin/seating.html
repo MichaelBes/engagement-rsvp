@@ -170,8 +170,15 @@
       activeOp.table.x = x; activeOp.table.y = y;
     } else if (activeOp.type === 'resize'){
       const dx = e.clientX - activeOp.startX, dy = e.clientY - activeOp.startY;
-      let newW = Math.max(activeOp.minW, activeOp.startW + dx);
-      let newH = Math.max(activeOp.minH, activeOp.startH + dy);
+      // The resize handle now rotates along with the table, so a screen-space
+      // mouse drag has to be translated into the table's own (unrotated) width/
+      // height axes before it's applied — otherwise dragging "outward" on a
+      // rotated table would grow it in the wrong direction.
+      const rad = (activeOp.rotation || 0) * Math.PI / 180;
+      const localDx = dx * Math.cos(rad) + dy * Math.sin(rad);
+      const localDy = -dx * Math.sin(rad) + dy * Math.cos(rad);
+      let newW = Math.max(activeOp.minW, activeOp.startW + localDx);
+      let newH = Math.max(activeOp.minH, activeOp.startH + localDy);
       if (activeOp.square){ const s = Math.max(newW, newH); newW = s; newH = s; }
       activeOp.table.width = newW; activeOp.table.height = newH;
       renderTables();
@@ -275,7 +282,6 @@
           <button data-act="dup" title="Duplicate">Dup</button>
           <button data-act="del" title="Delete">Del</button>
         </div>
-        <div class="rotate-handle" title="Drag to rotate — snaps to 45° steps unless you drag away from one">&#8635;</div>
         <div class="rotate-box" style="width:${w}px;height:${h}px;transform:rotate(${rotation}deg);">
           <div class="table-shape ${def.shapeClass}">
             <input class="t-name" value="${esc(t.name)}" />
@@ -286,8 +292,9 @@
                 <button class="seat-btn" data-act="seat-plus" title="Add a seat">+</button>
               </div>` : ''}
           </div>
+          <div class="rotate-handle" title="Drag to rotate — snaps to 45° steps unless you drag away from one">&#8635;</div>
+          <div class="resize-handle" title="Drag to resize"></div>
         </div>
-        <div class="resize-handle" title="Drag to resize"></div>
       `;
 
       const rotateBox = wrap.querySelector('.rotate-box');
@@ -339,7 +346,7 @@
       const handle = wrap.querySelector('.resize-handle');
       handle.addEventListener('mousedown', (e) => {
         e.stopPropagation();
-        activeOp = { type:'resize', table:t, startX:e.clientX, startY:e.clientY, startW:w, startH:h, minW:def.minW, minH:def.minH, square:!!def.square };
+        activeOp = { type:'resize', table:t, startX:e.clientX, startY:e.clientY, startW:w, startH:h, minW:def.minW, minH:def.minH, square:!!def.square, rotation };
       });
 
       // rotating — free angle, snapping near 45° steps (see ROTATE_SNAP_DEGREES)
