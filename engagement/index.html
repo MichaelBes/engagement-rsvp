@@ -927,6 +927,7 @@
       <div class="admin-wrap">
         <h1>Guest List &amp; RSVPs</h1>
         <div class="sub">${esc(EVENT.coupleA)} &amp; ${esc(EVENT.coupleB)}'s ${esc(EVENT.title)}</div>
+        <div style="margin-bottom:18px;font-size:12.5px;color:#8b8778;">This is the archived engagement admin — kept here for reference. &nbsp;<a href="/wedding/admin/" style="color:var(--wine);font-weight:600;text-decoration:underline;">Go to Wedding Admin &rarr;</a></div>
 
         <div class="summary-row">
           <div class="summary-chip"><b>${rsvps.length}</b>Responses so far</div>
@@ -957,19 +958,31 @@
           <div style="font-size:12.5px;color:#8b8778;margin:8px 0;">One per line: <code>Name, Phone</code> (phone in E.164 format e.g. +13125551234). You can also select and copy two columns (Name, Phone) directly from a spreadsheet and paste them here — that works too. Each person gets their own personal link with their name pre-filled. You can also just share the general invite link (no personal link needed) with anyone else — both work.</div>
           <textarea class="bulk" id="bulkInput" placeholder="Mina Fahmy, +13125551234&#10;Sarah Boutros, +17735559876"></textarea>
           <button class="admin-btn" id="addBtn">Add to phone list</button>
+          <button class="admin-btn" id="sendInvitesBtn">Send texts to new guests</button>
           <button class="admin-btn secondary" id="csvBtn">Export CSV for texting script</button>
           <button class="admin-btn secondary" id="markTextedBtn">Mark selected as already texted</button>
-          <button class="admin-btn secondary" id="reminderCsvBtn">Export reminder list (texted, no RSVP yet)</button>
+          <br/>
+          <button class="admin-btn" id="sendRemindersBtn" style="margin-top:8px;">Send reminders (texted, no RSVP yet)</button>
+          <button class="admin-btn secondary" id="reminderCsvBtn" style="margin-top:8px;">Export reminder list (texted, no RSVP yet)</button>
           <label style="font-size:12.5px;color:#8b8778;margin-left:12px;">
             <input type="checkbox" id="includeTextedCheckbox" style="vertical-align:middle;" />
             Include already-texted guests
           </label>
           <div style="font-size:12px;color:#8b8778;margin-top:6px;">Use this if you already texted people manually or with an older version of the script — check the box next to their name below, then click "Mark selected as already texted" so future exports skip them automatically.</div>
+          <div id="sendResultsArea"></div>
           <table class="guest-table" style="margin-top:16px;">
             <thead><tr><th><input type="checkbox" id="selectAllGuests" /></th><th>Name</th><th>Phone</th><th>Status</th><th>Personal Link</th></tr></thead>
             <tbody id="guestTableBody"></tbody>
           </table>
           <div id="guestPagination" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:14px;"></div>
+        </div>
+
+        <div class="admin-section">
+          <h2>Send General Invite (unofficial contacts)</h2>
+          <div style="font-size:12.5px;color:#8b8778;margin:8px 0;">For a few people who aren't officially on the guest list yet and don't need a personalized link. This does <strong>not</strong> add them to the Guests list above or track their status — send here for one-off, untracked sends.</div>
+          <textarea class="bulk" id="generalInviteInput" placeholder="Ashraf Nazier, +17089458416&#10;Nader Eskander, +17082808360"></textarea>
+          <button class="admin-btn" id="sendGeneralBtn">Send general invite</button>
+          <div id="generalSendResultsArea"></div>
         </div>
       </div>
     `;
@@ -1250,6 +1263,97 @@
       a.href = url; a.download = 'reminder_list.csv';
       a.click();
       URL.revokeObjectURL(url);
+    });
+
+    function renderSendResults(containerId, results){
+      const el = document.getElementById(containerId);
+      const { sent, failed, skipped } = results;
+      let html = `<div style="margin-top:12px;padding:12px;background:#faf7ee;border-radius:8px;font-size:13px;">`;
+      html += `<div style="font-weight:700;margin-bottom:6px;">Sent: ${sent.length} · Failed: ${failed.length} · Skipped: ${skipped.length}</div>`;
+      if (failed.length){
+        html += `<div style="color:#a33;margin-top:4px;">Failed:</div><ul style="margin:4px 0 0 18px;">`;
+        failed.forEach(f => { html += `<li>${esc(f.name)} (${esc(f.phone)}) — ${esc(f.error)}</li>`; });
+        html += `</ul>`;
+      }
+      if (skipped.length){
+        html += `<div style="color:#8b8778;margin-top:4px;">Skipped:</div><ul style="margin:4px 0 0 18px;">`;
+        skipped.forEach(s => { html += `<li>${esc(s.name)} (${esc(s.phone)}) — ${esc(s.reason)}</li>`; });
+        html += `</ul>`;
+      }
+      html += `</div>`;
+      el.innerHTML = html;
+    }
+
+    document.getElementById('sendInvitesBtn').addEventListener('click', async () => {
+      const notTexted = guests.filter(g => !g.textedAt);
+      if (!notTexted.length){
+        alert('Everyone currently on the list has already been texted.');
+        return;
+      }
+      const confirmed = confirm(`Send the invite text to ${notTexted.length} guest(s) who haven't been texted yet?`);
+      if (!confirmed) return;
+      const btn = document.getElementById('sendInvitesBtn');
+      btn.disabled = true; btn.innerText = 'Sending…';
+      try {
+        const results = await apiPost('sendInvites', {});
+        renderSendResults('sendResultsArea', results);
+        guests = await listGuests();
+        renderGuestTable();
+      } catch (err) {
+        alert('Something went wrong: ' + err.message);
+      } finally {
+        btn.disabled = false; btn.innerText = 'Send texts to new guests';
+      }
+    });
+
+    document.getElementById('sendRemindersBtn').addEventListener('click', async () => {
+      const respondedIds = new Set(rsvps.map(r => r.id));
+      const reminderList = guests.filter(g => g.textedAt && !respondedIds.has(g.id));
+      if (!reminderList.length){
+        alert('No one matches: everyone already texted has either responded, or no one has been texted yet.');
+        return;
+      }
+      const confirmed = confirm(`Send a reminder text to ${reminderList.length} guest(s) who haven't RSVP'd yet?`);
+      if (!confirmed) return;
+      const btn = document.getElementById('sendRemindersBtn');
+      btn.disabled = true; btn.innerText = 'Sending…';
+      try {
+        const results = await apiPost('sendReminders', {});
+        renderSendResults('sendResultsArea', results);
+      } catch (err) {
+        alert('Something went wrong: ' + err.message);
+      } finally {
+        btn.disabled = false; btn.innerText = 'Send reminders (texted, no RSVP yet)';
+      }
+    });
+
+    document.getElementById('sendGeneralBtn').addEventListener('click', async () => {
+      const raw = document.getElementById('generalInviteInput').value;
+      const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+      const recipients = [];
+      for (const line of lines){
+        const separator = line.includes('\t') ? '\t' : ',';
+        const [name, phone] = line.split(separator).map(s => (s||'').trim());
+        if (!name) continue;
+        recipients.push({ name, phone: phone || '' });
+      }
+      if (!recipients.length){
+        alert('Add at least one "Name, Phone" line first.');
+        return;
+      }
+      const confirmed = confirm(`Send the general invite link to ${recipients.length} person/people? They will NOT be added to your tracked guest list.`);
+      if (!confirmed) return;
+      const btn = document.getElementById('sendGeneralBtn');
+      btn.disabled = true; btn.innerText = 'Sending…';
+      try {
+        const results = await apiPost('sendGeneralInvites', { recipients });
+        renderSendResults('generalSendResultsArea', results);
+        if (results.sent.length) document.getElementById('generalInviteInput').value = '';
+      } catch (err) {
+        alert('Something went wrong: ' + err.message);
+      } finally {
+        btn.disabled = false; btn.innerText = 'Send general invite';
+      }
     });
   }
 

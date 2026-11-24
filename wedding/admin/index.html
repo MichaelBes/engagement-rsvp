@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wedding Admin</title>
+<meta name="robots" content="noindex">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Inter:wght@400;500;600&display=swap');
+  :root{
+    --indigo:#1B2340; --gold:#C9A24B; --gold-soft:#E4CD97; --ivory:#F8F4EA; --wine:#6B1F2B; --charcoal:#2A2A28;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; background:var(--indigo); color:var(--ivory); font-family:'Inter',sans-serif; }
+  .stage{ min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:40px 16px 80px; }
+  .admin-wrap{ width:100%; max-width:900px; background:var(--ivory); color:var(--charcoal); border-radius:14px; padding:32px 30px 40px; box-shadow:0 30px 60px -20px rgba(0,0,0,0.55); }
+  .admin-wrap h1{ font-family:'Cormorant Garamond',serif; color:var(--indigo); font-size:30px; margin:0 0 4px; }
+  .admin-wrap .sub{ color:#8b8778; font-size:13px; margin-bottom:22px; }
+  .admin-section{ margin-bottom:34px; }
+  .admin-section h2{ font-size:12px; text-transform:uppercase; letter-spacing:0.12em; color:var(--wine); font-weight:700; margin-bottom:12px; }
+  textarea.bulk{ width:100%; min-height:110px; padding:12px 14px; border-radius:8px; border:1.5px solid #ddd6c4; font-family:'Inter',monospace; font-size:13.5px; }
+  input[type=text], input[type=date], input[type=number]{ padding:9px 12px; border-radius:8px; border:1.5px solid #ddd6c4; font-size:13.5px; }
+  .admin-btn{ padding:10px 18px; border-radius:8px; border:none; background:var(--wine); color:var(--ivory); font-weight:600; font-size:13.5px; cursor:pointer; margin-top:10px; margin-right:8px; }
+  .admin-btn.secondary{ background:var(--indigo); }
+  .admin-btn:disabled{ opacity:0.5; cursor:default; }
+  table.guest-table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  table.guest-table th{ text-align:left; text-transform:uppercase; font-size:10.5px; letter-spacing:0.1em; color:#8b8778; padding:8px 6px; border-bottom:1.5px solid #eee6d4; }
+  table.guest-table td{ padding:9px 6px; border-bottom:1px solid #f0ebdd; vertical-align:top; }
+  @media (max-width:640px){
+    table.guest-table thead{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; padding:0; margin:-1px; }
+    table.guest-table, table.guest-table tbody, table.guest-table tr, table.guest-table td{ display:block; width:100%; }
+    table.guest-table tr{ background:#fff; border:1px solid #eee6d4; border-radius:10px; padding:10px 12px; margin-bottom:12px; }
+    table.guest-table td{ border-bottom:none; padding:6px 0; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; text-align:right; }
+    table.guest-table td::before{ content:attr(data-label); font-size:10.5px; text-transform:uppercase; letter-spacing:0.08em; color:#8b8778; font-weight:700; text-align:left; flex-shrink:0; }
+  }
+  .pill{ padding:3px 9px; border-radius:20px; font-size:11px; font-weight:700; }
+  .pill.yes{ background:#EFE6E8; color:var(--wine); }
+  .pill.no{ background:#E7E9F0; color:var(--indigo); }
+  .pill.pending{ background:#f2ede0; color:#8b8778; }
+  .pill.late{ background:#F6DCCB; color:#8A3E1F; }
+  .copy-link{ font-size:12px; color:var(--wine); cursor:pointer; text-decoration:underline; word-break:break-all; }
+  .admin-login{ max-width:340px; margin:100px auto 0; text-align:center; }
+  .admin-login input{ width:100%; padding:12px 14px; border-radius:8px; border:1.5px solid #ddd6c4; margin:14px 0; font-size:15px; }
+  .summary-row{ display:flex; gap:14px; margin-bottom:18px; flex-wrap:wrap; }
+  .summary-chip{ background:#F2EDE0; padding:10px 16px; border-radius:10px; font-size:12.5px; }
+  .summary-chip b{ display:block; font-family:'Cormorant Garamond',serif; font-size:22px; color:var(--indigo); }
+  .pager{ display:flex; gap:6px; align-items:center; margin-top:14px; flex-wrap:wrap; }
+  .pager button{ padding:6px 11px; border-radius:6px; border:1px solid #ddd6c4; background:#fff; font-size:12.5px; cursor:pointer; }
+  .pager button.active{ background:var(--wine); color:#fff; border-color:var(--wine); }
+  .toolbar{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+  .nav-link{ display:inline-block; margin: 4px 10px 4px 0; font-size:13px; color:var(--wine); font-weight:600; text-decoration:underline; }
+  .placeholder-card{ border:1.5px dashed #ddd6c4; border-radius:10px; padding:14px 16px; font-size:13px; color:#8b8778; margin-bottom:10px; }
+  .result-line{ font-size:13px; padding:4px 0; }
+</style>
+</head>
+<body>
+<div class="stage"><div id="app" class="admin-wrap"></div></div>
+
+<script>
+(function(){
+  const ADMIN_PASSCODE = "MaroGeorgeWedding2027"; // change this to something only you know
+  const API_URL = "https://script.google.com/macros/s/AKfycbwzEPctYkISweBpnYKHBXpvk7RMCM7xiQxYgI-xnmEOZ7p2wjqDUm_Xfa7d4DcCro-T/exec"; // same Apps Script URL as the rest of the site
+  const SITE_URL = "https://maroandgeorge.com/wedding/";
+
+  const app = document.getElementById('app');
+  let adminUnlocked = false;
+  const PAGE_SIZE = 10;
+  let familySearch = '';
+  let familyPage = 1;
+  let allFamilies = [];
+
+  function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  async function apiGet(action, p){
+    const url = new URL(API_URL);
+    url.searchParams.set('action', action);
+    Object.entries(p || {}).forEach(([k,v]) => url.searchParams.set(k, v));
+    const res = await fetch(url.toString());
+    return res.json();
+  }
+  async function apiPost(action, payload){
+    const res = await fetch(API_URL, {
+      method:'POST',
+      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+      body: JSON.stringify(Object.assign({ action }, payload))
+    });
+    return res.json();
+  }
+
+  function renderLogin(){
+    app.innerHTML = `
+      <div class="admin-login">
+        <h1 style="font-family:'Cormorant Garamond',serif;color:var(--indigo);">Wedding Admin</h1>
+        <input type="password" id="pass" placeholder="Enter passcode" />
+        <button class="admin-btn" id="login-btn">Enter</button>
+      </div>`;
+    document.getElementById('login-btn').onclick = checkPass;
+    document.getElementById('pass').addEventListener('keydown', e => { if (e.key === 'Enter') checkPass(); });
+    function checkPass(){
+      if (document.getElementById('pass').value === ADMIN_PASSCODE){
+        adminUnlocked = true;
+        renderDashboard();
+      } else {
+        alert('Incorrect passcode.');
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  async function renderDashboard(){
+    app.innerHTML = `<div class="loading" style="text-align:center;padding:60px 0;">Loading...</div>`;
+    const [stats, families] = await Promise.all([
+      apiGet('getHeadcountStats'),
+      apiGet('getAllFamilies'),
+    ]);
+    allFamilies = families.families || [];
+    app.innerHTML = `
+      <h1>Wedding Admin</h1>
+      <div class="sub">Family RSVPs, texting, and planning tools.</div>
+      <div style="margin-bottom:18px;font-size:12.5px;color:#8b8778;">Looking for the engagement guest list? &nbsp;<a href="/engagement/?admin=1" style="color:var(--wine);font-weight:600;text-decoration:underline;">Go to Engagement Admin &rarr;</a></div>
+
+      <div class="admin-section" id="headcount-section"></div>
+      <div class="admin-section" id="families-section"></div>
+      <div class="admin-section" id="import-section"></div>
+      <div class="admin-section" id="texting-section"></div>
+      <div class="admin-section" id="export-section"></div>
+      <div class="admin-section" id="more-tools-section"></div>
+    `;
+    renderHeadcount(stats);
+    renderFamilies();
+    renderImport();
+    renderTexting();
+    renderExport();
+    renderMoreTools();
+  }
+
+  function renderHeadcount(stats){
+    stats = stats || {};
+    const waves = stats.byWave || [];
+    document.getElementById('headcount-section').innerHTML = `
+      <h2>Headcount</h2>
+      <div class="summary-row">
+        <div class="summary-chip"><b>${stats.totalGuests ?? 0}</b>Total Invited</div>
+        <div class="summary-chip"><b>${stats.ceremonyYes ?? 0}</b>Ceremony — Yes</div>
+        <div class="summary-chip"><b>${stats.ceremonyNo ?? 0}</b>Ceremony — No</div>
+        <div class="summary-chip"><b>${stats.receptionYes ?? 0}</b>Reception — Yes</div>
+        <div class="summary-chip"><b>${stats.receptionNo ?? 0}</b>Reception — No</div>
+        <div class="summary-chip"><b>${stats.pending ?? 0}</b>Not Responded</div>
+        <div class="summary-chip"><b>${stats.deadlineApproaching ?? 0}</b>Deadline Approaching</div>
+      </div>
+      ${waves.length ? `
+        <table class="guest-table">
+          <thead><tr><th>Wave</th><th>Deadline</th><th>Families</th><th>Responded</th></tr></thead>
+          <tbody>
+            ${waves.map(w => `
+              <tr>
+                <td data-label="Wave">Wave ${esc(w.wave)}</td>
+                <td data-label="Deadline">${esc(w.deadline || '—')}</td>
+                <td data-label="Families">${w.familyCount}</td>
+                <td data-label="Responded">${w.respondedCount} / ${w.familyCount}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>` : ''}
+    `;
+  }
+
+  function statusPill(val){
+    if (val === true) return `<span class="pill yes">Yes</span>`;
+    if (val === false) return `<span class="pill no">No</span>`;
+    return `<span class="pill pending">Pending</span>`;
+  }
+
+  function getFilteredFamilies(){
+    const q = familySearch.trim().toLowerCase();
+    if (!q) return allFamilies;
+    return allFamilies.filter(f =>
+      f.familyName.toLowerCase().includes(q) ||
+      (f.members||[]).some(m => m.name.toLowerCase().includes(q))
+    );
+  }
+
+  function renderFamilies(){
+    const filtered = getFilteredFamilies();
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    familyPage = Math.min(familyPage, totalPages);
+    const pageItems = filtered.slice((familyPage-1)*PAGE_SIZE, familyPage*PAGE_SIZE);
+
+    document.getElementById('families-section').innerHTML = `
+      <h2>Families (${filtered.length})</h2>
+      <div class="toolbar">
+        <input type="text" id="family-search" placeholder="Search by family or guest name" value="${esc(familySearch)}" />
+      </div>
+      <table class="guest-table">
+        <thead><tr><th>Family</th><th>Wave</th><th>Deadline</th><th>Ceremony</th><th>Reception</th><th>Link</th></tr></thead>
+        <tbody>
+          ${pageItems.map(f => {
+            const cerYes = (f.members||[]).filter(m=>m.ceremony===true).length;
+            const recYes = (f.members||[]).filter(m=>m.reception===true).length;
+            const total = (f.members||[]).length;
+            return `
+            <tr>
+              <td data-label="Family">${esc(f.familyName)} (${total})</td>
+              <td data-label="Wave">${esc(f.wave||'—')}</td>
+              <td data-label="Deadline">${esc(f.deadline||'—')}</td>
+              <td data-label="Ceremony">${cerYes}/${total} yes</td>
+              <td data-label="Reception">${recYes}/${total} yes</td>
+              <td data-label="Link"><span class="copy-link" data-link="${SITE_URL}?id=${encodeURIComponent(f.familyId)}">Copy link</span></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+      <div class="pager" id="family-pager"></div>
+    `;
+
+    const pager = document.getElementById('family-pager');
+    for (let i = 1; i <= totalPages; i++){
+      const b = document.createElement('button');
+      b.textContent = i;
+      if (i === familyPage) b.classList.add('active');
+      b.onclick = () => { familyPage = i; renderFamilies(); };
+      pager.appendChild(b);
+    }
+
+    document.getElementById('family-search').addEventListener('input', (e) => {
+      familySearch = e.target.value; familyPage = 1; renderFamilies();
+    });
+    document.querySelectorAll('.copy-link').forEach(el => {
+      el.addEventListener('click', () => {
+        navigator.clipboard.writeText(el.dataset.link).then(() => {
+          const old = el.textContent; el.textContent = 'Copied!';
+          setTimeout(() => { el.textContent = old; }, 1200);
+        });
+      });
+    });
+  }
+
+  function renderImport(){
+    document.getElementById('import-section').innerHTML = `
+      <h2>Bulk Import Families</h2>
+      <p style="font-size:12.5px;color:#8b8778;margin:0 0 8px;">
+        Paste rows copied from a spreadsheet, one family member per line, columns separated by tabs:<br>
+        <code>Name&nbsp;&nbsp;Phone&nbsp;&nbsp;Family Name&nbsp;&nbsp;Wave&nbsp;&nbsp;Deadline (YYYY-MM-DD)</code><br>
+        Rows that share the same Family Name are grouped into one family automatically.
+      </p>
+      <textarea class="bulk" id="import-bulk" placeholder="Jane Smith&#9;+13125551234&#9;Smith Family&#9;1&#9;2027-03-01
+John Smith&#9;+13125551235&#9;Smith Family&#9;1&#9;2027-03-01"></textarea>
+      <button class="admin-btn" id="import-btn">Import</button>
+      <div id="import-result"></div>
+    `;
+    document.getElementById('import-btn').onclick = async () => {
+      const raw = document.getElementById('import-bulk').value.trim();
+      if (!raw) return;
+      const rows = raw.split('\n').map(line => line.split('\t').map(c => c.trim()));
+      const guests = rows.filter(r => r[0]).map(r => ({
+        name: r[0], phone: r[1]||'', familyName: r[2]||r[0], wave: r[3]||'1', deadline: r[4]||''
+      }));
+      document.getElementById('import-result').textContent = 'Importing...';
+      const result = await apiPost('addFamilies', { guests });
+      document.getElementById('import-result').textContent = `Imported ${result.count || guests.length} guest(s).`;
+      renderDashboard();
+    };
+  }
+
+  function renderTexting(){
+    document.getElementById('texting-section').innerHTML = `
+      <h2>Send Texts</h2>
+      <div class="toolbar">
+        <label style="font-size:12.5px;">Wave:</label>
+        <input type="text" id="wave-input" placeholder="e.g. 1" style="width:70px;" />
+        <button class="admin-btn" id="send-invites-btn">Send Invites for Wave</button>
+        <button class="admin-btn secondary" id="send-reminders-btn">Send Reminders to Non-Responders (All Waves)</button>
+      </div>
+      <div id="send-results"></div>
+    `;
+    function renderResults(results){
+      const div = document.getElementById('send-results');
+      if (!results || !results.length){ div.innerHTML = '<div class="result-line">No messages sent.</div>'; return; }
+      div.innerHTML = results.map(r => `<div class="result-line">${r.ok ? '✅' : '⚠️'} ${esc(r.name)} — ${esc(r.message)}</div>`).join('');
+    }
+    document.getElementById('send-invites-btn').onclick = async (e) => {
+      const wave = document.getElementById('wave-input').value.trim();
+      if (!wave) { alert('Enter a wave number first.'); return; }
+      e.target.disabled = true; e.target.textContent = 'Sending...';
+      const result = await apiPost('sendFamilyInvites', { wave });
+      renderResults(result.results);
+      e.target.disabled = false; e.target.textContent = 'Send Invites for Wave';
+    };
+    document.getElementById('send-reminders-btn').onclick = async (e) => {
+      e.target.disabled = true; e.target.textContent = 'Sending...';
+      const result = await apiPost('sendFamilyReminders', {});
+      renderResults(result.results);
+      e.target.disabled = false; e.target.textContent = 'Send Reminders to Non-Responders (All Waves)';
+    };
+  }
+
+  function renderExport(){
+    document.getElementById('export-section').innerHTML = `
+      <h2>Export</h2>
+      <button class="admin-btn secondary" id="export-csv-btn">Export Guest List (CSV)</button>
+    `;
+    document.getElementById('export-csv-btn').onclick = () => {
+      const rows = [['Family','Wave','Deadline','Name','Phone','Ceremony','Reception','Notes']];
+      allFamilies.forEach(f => {
+        (f.members||[]).forEach(m => {
+          rows.push([f.familyName, f.wave||'', f.deadline||'', m.name, m.phone||'',
+            m.ceremony===true?'Yes':m.ceremony===false?'No':'',
+            m.reception===true?'Yes':m.reception===false?'No':'',
+            f.notes||'']);
+        });
+      });
+      const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type:'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'wedding_guest_list.csv';
+      a.click();
+    };
+  }
+
+  function renderMoreTools(){
+    document.getElementById('more-tools-section').innerHTML = `
+      <h2>Planning Tools</h2>
+      <a class="nav-link" href="seating.html">Seating Chart Builder &rarr;</a><br>
+      <div class="placeholder-card">Vendor contact list — not built yet (on hold).</div>
+      <div class="placeholder-card">Thank-you card tracker — not built yet (on hold).</div>
+      <div class="placeholder-card">Day-of timeline / itinerary — not built yet, placeholder only.</div>
+    `;
+  }
+
+  renderLogin();
+})();
+</script>
+</body>
+</html>

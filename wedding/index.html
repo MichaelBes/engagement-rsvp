@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Maro & George — Wedding</title>
+
+<link rel="icon" type="image/png" href="../engagement/favicon.png">
+<link rel="apple-touch-icon" href="../engagement/favicon.png">
+
+<meta property="og:title" content="Maro & George's Wedding">
+<meta property="og:description" content="You're invited! June 19, 2027. Tap to RSVP.">
+<meta property="og:url" content="https://maroandgeorge.com/wedding/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Inter:wght@400;500;600&display=swap');
+
+  :root{
+    --indigo: #1B2340; --indigo-2: #262F52;
+    --gold: #C9A24B; --gold-soft: #E4CD97;
+    --ivory: #F8F4EA; --wine: #6B1F2B; --charcoal: #2A2A28;
+  }
+  *{ box-sizing: border-box; }
+  html,body{ margin:0; padding:0; background:var(--indigo); color:var(--ivory); font-family:'Inter',sans-serif; }
+
+  .stage{
+    min-height:100vh; display:flex; flex-direction:column; align-items:center;
+    justify-content:flex-start; padding: 48px 20px 80px; position:relative; overflow-x:hidden;
+  }
+  .stage::before{
+    content:""; position:absolute; top:0; left:0; right:0; height:340px;
+    background: radial-gradient(ellipse at 50% -10%, rgba(201,162,75,0.18), transparent 60%);
+    pointer-events:none;
+  }
+
+  .card{
+    background:var(--ivory); color:var(--charcoal); width:100%; max-width:480px;
+    border-radius:18px; padding: 34px 32px 40px; box-shadow: 0 30px 60px -20px rgba(0,0,0,0.55);
+    z-index:1; animation: rise 700ms ease-out both;
+  }
+  @keyframes rise{ from{opacity:0; transform:translateY(18px);} to{opacity:1; transform:translateY(0);} }
+
+  .eyebrow{ text-align:center; text-transform:uppercase; letter-spacing:0.22em; font-size:11px; color:var(--wine); font-weight:600; margin:0 0 6px; }
+  h1.names{ font-family:'Cormorant Garamond',serif; font-weight:600; font-size:38px; text-align:center; margin:0 0 4px; line-height:1.05; color:var(--indigo); }
+  .ampersand{ color:var(--wine); font-style:italic; font-weight:500; padding:0 6px; }
+  .subline{ text-align:center; font-family:'Cormorant Garamond',serif; font-style:italic; font-size:18px; color:#55524a; margin:0 0 22px; }
+
+  .divider{ display:flex; align-items:center; gap:10px; margin:22px 0; }
+  .divider .line{ flex:1; height:1px; background:linear-gradient(90deg,transparent,var(--gold-soft),transparent); }
+  .divider .mark{ color:var(--gold); font-size:14px; }
+
+  .nav-tabs{ display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin: 0 0 18px; }
+  .nav-tabs a{
+    font-size:11.5px; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;
+    color:var(--wine); text-decoration:none; padding:6px 10px; border-radius:20px; border:1px solid #e7dfca;
+  }
+  .nav-tabs a:hover{ background:#F2EDE0; }
+
+  .field{ margin-bottom:16px; }
+  .field label{ display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.12em; color:#8b8778; font-weight:600; margin-bottom:6px; }
+  .field input, .field textarea{
+    width:100%; padding:12px 14px; border-radius:8px; border:1.5px solid #ddd6c4; font-family:'Inter',sans-serif; font-size:15px;
+  }
+  .field textarea{ min-height:80px; resize:vertical; }
+
+  .btn{
+    width:100%; padding:14px; border-radius:10px; border:none; background:var(--wine); color:var(--ivory);
+    font-weight:600; font-size:15px; cursor:pointer; margin-top:6px;
+  }
+  .btn.secondary{ background:var(--indigo); }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+
+  .member-block{ border:1.5px solid #eee6d4; border-radius:12px; padding:16px; margin-bottom:14px; }
+  .member-name{ font-family:'Cormorant Garamond',serif; font-size:20px; color:var(--indigo); font-weight:600; margin-bottom:12px; }
+  .choice-group{ margin-bottom:10px; }
+  .choice-group .q{ font-size:12px; font-weight:600; color:#8b8778; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px; }
+  .choice-row{ display:flex; gap:10px; }
+  .choice-btn{
+    flex:1; padding:11px 8px; border-radius:8px; border:1.5px solid #ddd6c4; background:#fff;
+    font-family:'Inter',sans-serif; font-weight:600; font-size:14px; color:var(--charcoal); cursor:pointer; transition:all 160ms ease;
+  }
+  .choice-btn:hover{ border-color:var(--gold); }
+  .choice-btn.selected-yes{ background:var(--wine); border-color:var(--wine); color:var(--ivory); }
+  .choice-btn.selected-no{ background:var(--indigo); border-color:var(--indigo); color:var(--ivory); }
+
+  .deadline-banner{
+    background:#F2EDE0; border-radius:10px; padding:10px 14px; font-size:13px; color:var(--indigo);
+    text-align:center; margin-bottom:20px; font-weight:600;
+  }
+
+  .loading, .error-box{ text-align:center; padding:60px 20px; color:var(--ivory); font-family:'Cormorant Garamond',serif; font-size:19px; }
+
+  .not-found{ text-align:center; padding: 10px 0 0; color:#55524a; font-size:14px; line-height:1.6; }
+
+  .registry-box{ background:#F2EDE0; border-radius:12px; padding:18px; margin-top:22px; text-align:center; }
+  .registry-box h3{ font-family:'Cormorant Garamond',serif; color:var(--indigo); margin:0 0 10px; font-size:19px; }
+  .registry-box a{ display:inline-block; margin:4px 6px; color:var(--wine); font-weight:600; font-size:13.5px; text-decoration:underline; }
+
+  .confirmation{ text-align:center; }
+  .confirmation .check{ font-size:40px; color:var(--wine); margin-bottom:10px; }
+  .confirmation h2{ font-family:'Cormorant Garamond',serif; color:var(--indigo); font-size:26px; margin:0 0 8px; }
+  .confirmation p{ color:#55524a; font-size:14.5px; line-height:1.6; margin:0 0 18px; }
+
+  .gate-wrap{ max-width:340px; margin:100px auto 0; text-align:center; }
+  .gate-wrap input{ width:100%; padding:12px 14px; border-radius:8px; border:1.5px solid #ddd6c4; margin:14px 0; font-size:15px; }
+
+  .info-section{ padding: 10px 2px; }
+  .info-section h2{ font-family:'Cormorant Garamond',serif; color:var(--indigo); font-size:24px; margin:0 0 10px; }
+  .info-section p{ color:#55524a; font-size:14.5px; line-height:1.6; }
+  .placeholder-note{ background:#F2EDE0; border-radius:8px; padding:10px 12px; font-size:12px; color:#8b8778; margin-top:10px; }
+
+  footer{ text-align:center; margin-top:26px; font-size:11.5px; color:#b9b4a4; }
+  footer a{ color:#b9b4a4; }
+</style>
+</head>
+<body>
+<div id="app" class="stage"></div>
+
+<script>
+(function(){
+  // ---- CONFIG ----------------------------------------------------------
+  const EVENT = {
+    coupleA: "Maro",
+    coupleB: "George",
+    dateLabel: "Saturday, June 19th, 2027",
+  };
+
+  const API_URL = "https://script.google.com/macros/s/AKfycbwzEPctYkISweBpnYKHBXpvk7RMCM7xiQxYgI-xnmEOZ7p2wjqDUm_Xfa7d4DcCro-T/exec"; // same Apps Script URL as the engagement site
+
+  // Set to false once you're ready for the public to see this page.
+  const UNDER_CONSTRUCTION = true;
+  const PREVIEW_PASSCODE = "MaroGeorgeWedding";
+
+  // Fill these in once the couple decides. Leave empty to hide the section.
+  const REGISTRY_LINKS = [
+    // { label: "Target Registry", url: "https://www.target.com/gift-registry/..." },
+    // { label: "Honeymoon Fund", url: "https://..." },
+  ];
+
+  const app = document.getElementById('app');
+  const params = new URLSearchParams(window.location.search);
+  const hash = (window.location.hash || '').replace(/^#\/?/, '');
+
+  // ---- API HELPERS -------------------------------------------------------
+  async function apiGet(action, p){
+    const url = new URL(API_URL);
+    url.searchParams.set('action', action);
+    Object.entries(p || {}).forEach(([k,v]) => url.searchParams.set(k, v));
+    const res = await fetch(url.toString());
+    return res.json();
+  }
+  async function apiPost(action, payload){
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(Object.assign({ action }, payload))
+    });
+    return res.json();
+  }
+
+  function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  // ---- SHELL --------------------------------------------------------------
+  function headerHTML(){
+    return `
+      <div class="eyebrow">You're Invited</div>
+      <h1 class="names">${EVENT.coupleA}<span class="ampersand">&amp;</span>${EVENT.coupleB}</h1>
+      <div class="subline">${EVENT.dateLabel}</div>
+      <div class="nav-tabs">
+        <a href="#rsvp">RSVP</a>
+        <a href="#travel">Travel</a>
+        <a href="#party">Wedding Party</a>
+        <a href="#gallery">Gallery</a>
+        <a href="#faq">FAQ</a>
+      </div>`;
+  }
+
+  function footerHTML(){
+    return `<footer>Questions? Reach out to Maro &amp; George directly. &middot; <a href="../privacy/">Privacy Policy</a></footer>`;
+  }
+
+  function render(innerHTML){
+    app.innerHTML = `<div class="card">${innerHTML}</div>${footerHTML()}`;
+  }
+
+  // ---- GUEST-FACING INFO TABS (placeholders — fill in later) --------------
+  function infoSectionsHTML(){
+    return `
+      <div id="travel" class="info-section">
+        <h2>Travel &amp; Hotel</h2>
+        <p>Details on the hotel room block and travel tips will go here.</p>
+        <div class="placeholder-note">PLACEHOLDER — add hotel block info, address, and any travel notes.</div>
+      </div>
+      <div id="party" class="info-section">
+        <h2>Wedding Party</h2>
+        <p>Bridesmaids, groomsmen, and the rest of the wedding party will be introduced here.</p>
+        <div class="placeholder-note">PLACEHOLDER — add names, photos, and roles.</div>
+      </div>
+      <div id="gallery" class="info-section">
+        <h2>Gallery</h2>
+        <p>Photos will go here once they're ready.</p>
+        <div class="placeholder-note">PLACEHOLDER — add photos.</div>
+      </div>
+      <div id="faq" class="info-section">
+        <h2>FAQ</h2>
+        <p>Dress code, parking, kids policy, and other common questions will go here.</p>
+        <div class="placeholder-note">PLACEHOLDER — add Q&amp;A content.</div>
+      </div>`;
+  }
+
+  function registryHTML(){
+    if (!REGISTRY_LINKS.length) return '';
+    const links = REGISTRY_LINKS.map(r => `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.label)}</a>`).join('');
+    return `<div class="registry-box"><h3>Registry</h3>${links}</div>`;
+  }
+
+  // ---- BUILD-PHASE GATE -----------------------------------------------------
+  function renderGate(){
+    app.innerHTML = `
+      <div class="card gate-wrap">
+        <h1 class="names" style="font-size:26px;">Preview</h1>
+        <p style="color:#55524a; font-size:13.5px;">This page isn't public yet. Enter the preview passcode to continue.</p>
+        <input type="password" id="pw" placeholder="Passcode" />
+        <button class="btn" id="unlock-btn">Continue</button>
+      </div>`;
+    document.getElementById('unlock-btn').onclick = () => {
+      if (document.getElementById('pw').value === PREVIEW_PASSCODE) {
+        sessionStorage.setItem('wedding_preview_ok', '1');
+        boot();
+      } else {
+        alert('Incorrect passcode.');
+      }
+    };
+  }
+
+  // ---- RSVP FLOW --------------------------------------------------------
+  function memberFormHTML(m){
+    return `
+      <div class="member-block" data-guest-id="${esc(m.id)}">
+        <div class="member-name">${esc(m.name)}</div>
+        <div class="choice-group">
+          <div class="q">Ceremony</div>
+          <div class="choice-row" data-field="ceremony">
+            <button type="button" class="choice-btn ${m.ceremony === true ? 'selected-yes' : ''}" data-val="yes">Yes</button>
+            <button type="button" class="choice-btn ${m.ceremony === false ? 'selected-no' : ''}" data-val="no">No</button>
+          </div>
+        </div>
+        <div class="choice-group">
+          <div class="q">Reception</div>
+          <div class="choice-row" data-field="reception">
+            <button type="button" class="choice-btn ${m.reception === true ? 'selected-yes' : ''}" data-val="yes">Yes</button>
+            <button type="button" class="choice-btn ${m.reception === false ? 'selected-no' : ''}" data-val="no">No</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function renderFamilyForm(family){
+    const deadline = family.deadline
+      ? `<div class="deadline-banner">Please respond by ${esc(family.deadline)}</div>`
+      : '';
+    render(`
+      <div id="rsvp">
+        ${headerHTML()}
+        <div class="divider"><div class="line"></div><div class="mark">&#10022;</div><div class="line"></div></div>
+        <h2 style="font-family:'Cormorant Garamond',serif; color:var(--indigo); text-align:center; font-size:22px; margin-bottom:14px;">
+          The ${esc(family.familyName)}
+        </h2>
+        ${deadline}
+        <form id="rsvp-form">
+          ${family.members.map(memberFormHTML).join('')}
+          <div class="field">
+            <label>Allergies / Notes (optional)</label>
+            <textarea id="family-notes">${esc(family.notes || '')}</textarea>
+          </div>
+          <button type="submit" class="btn">Submit RSVP</button>
+        </form>
+        ${registryHTML()}
+      </div>
+      ${infoSectionsHTML()}
+    `);
+
+    // wire choice buttons
+    document.querySelectorAll('.choice-row').forEach(row => {
+      row.querySelectorAll('.choice-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          row.querySelectorAll('.choice-btn').forEach(b => b.classList.remove('selected-yes','selected-no'));
+          btn.classList.add(btn.dataset.val === 'yes' ? 'selected-yes' : 'selected-no');
+          row.dataset.selected = btn.dataset.val;
+        });
+      });
+      if (row.dataset.selected === undefined) {
+        const pre = row.querySelector('.selected-yes, .selected-no');
+        if (pre) row.dataset.selected = pre.classList.contains('selected-yes') ? 'yes' : 'no';
+      }
+    });
+
+    document.getElementById('rsvp-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const blocks = document.querySelectorAll('.member-block');
+      const members = Array.from(blocks).map(block => {
+        const ceremonyRow = block.querySelector('[data-field="ceremony"]');
+        const receptionRow = block.querySelector('[data-field="reception"]');
+        return {
+          id: block.dataset.guestId,
+          ceremony: ceremonyRow.dataset.selected === 'yes' ? true : (ceremonyRow.dataset.selected === 'no' ? false : null),
+          reception: receptionRow.dataset.selected === 'yes' ? true : (receptionRow.dataset.selected === 'no' ? false : null),
+        };
+      });
+      const notes = document.getElementById('family-notes').value;
+      const btn = e.target.querySelector('button[type="submit"]');
+      btn.disabled = true; btn.textContent = 'Saving...';
+      try{
+        await apiPost('submitFamilyRsvp', { familyId: family.familyId, members, notes });
+        renderConfirmation(family);
+      }catch(err){
+        alert('Something went wrong submitting your RSVP. Please try again.');
+        btn.disabled = false; btn.textContent = 'Submit RSVP';
+      }
+    });
+  }
+
+  function renderConfirmation(family){
+    render(`
+      <div class="confirmation">
+        <div class="check">&#10003;</div>
+        <h2>Thank you!</h2>
+        <p>Your RSVP for the ${esc(family.familyName)} has been recorded.</p>
+        <button class="btn secondary" id="edit-again">Edit my response</button>
+        ${registryHTML()}
+      </div>
+      ${infoSectionsHTML()}
+    `);
+    document.getElementById('edit-again').onclick = () => loadFamily(family.familyId);
+  }
+
+  function renderSearch(notFoundName){
+    render(`
+      ${headerHTML()}
+      <div class="divider"><div class="line"></div><div class="mark">&#10022;</div><div class="line"></div></div>
+      <div class="field">
+        <label>Find your family</label>
+        <input type="text" id="search-input" placeholder="Type your name" autofocus />
+      </div>
+      <button class="btn" id="search-btn">Search</button>
+      ${notFoundName ? `<div class="not-found">We couldn't find "${esc(notFoundName)}" on the list — please double check the spelling, or reach out to Maro &amp; George directly.</div>` : ''}
+      ${infoSectionsHTML()}
+    `);
+    const go = async () => {
+      const q = document.getElementById('search-input').value.trim();
+      if (!q) return;
+      app.querySelector('#search-btn').textContent = 'Searching...';
+      const result = await apiGet('searchFamily', { query: q });
+      if (result && result.found) {
+        history.replaceState(null, '', '?id=' + encodeURIComponent(result.familyId));
+        renderFamilyForm(result);
+      } else {
+        renderSearch(q);
+      }
+    };
+    document.getElementById('search-btn').onclick = go;
+    document.getElementById('search-input').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+  }
+
+  async function loadFamily(id){
+    render(`<div class="loading">Loading your invitation...</div>`);
+    try{
+      const result = await apiGet('getFamilyById', { id });
+      if (result && result.found) {
+        renderFamilyForm(result);
+      } else {
+        renderSearch();
+      }
+    }catch(e){
+      render(`<div class="error-box">Something went wrong loading your invitation. Please try again shortly.</div>`);
+    }
+  }
+
+  // ---- BOOT -----------------------------------------------------------
+  function boot(){
+    const id = params.get('id');
+    if (id) {
+      loadFamily(id);
+    } else {
+      renderSearch();
+    }
+    if (hash) {
+      setTimeout(() => { const el = document.getElementById(hash); if (el) el.scrollIntoView({behavior:'smooth'}); }, 300);
+    }
+  }
+
+  if (UNDER_CONSTRUCTION && sessionStorage.getItem('wedding_preview_ok') !== '1') {
+    renderGate();
+  } else {
+    boot();
+  }
+})();
+</script>
+</body>
+</html>
