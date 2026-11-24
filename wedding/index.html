@@ -151,6 +151,7 @@
       ? `<div class="deadline-banner">Please respond by ${esc(family.deadline)}</div>`
       : '';
     render(`
+      <a href="#" id="back-to-search-link" class="back-link">&larr; Not your family? Back to search</a>
       <h2 style="font-family:'Cormorant Garamond',serif; color:var(--indigo); text-align:center; font-size:22px; margin-bottom:14px;">
         The ${esc(family.familyName)}
       </h2>
@@ -165,6 +166,20 @@
       </form>
       ${registryHTML()}
     `);
+
+    // The browser's own Back button can't be relied on here — since Travel/
+    // Wedding Party/Gallery/FAQ are now real separate pages (not anchors on
+    // this same page), the tab's history might have "Travel" right before
+    // this RSVP form instead of the search screen, so Back would leave the
+    // RSVP flow entirely instead of returning to search. This link sidesteps
+    // that by just re-rendering the search screen directly, and also clears
+    // the "?id=..." from the address bar so reloading the page (or coming
+    // back to this tab later) doesn't drop you right back into this family.
+    document.getElementById('back-to-search-link').addEventListener('click', (e) => {
+      e.preventDefault();
+      history.replaceState(null, '', window.location.pathname);
+      renderSearch();
+    });
 
     document.querySelectorAll('.choice-row').forEach(row => {
       row.querySelectorAll('.choice-btn').forEach(btn => {
@@ -226,15 +241,17 @@
       </div>
       <button class="btn" id="search-btn">Search</button>
       ${notFoundName ? `<div class="not-found">We couldn't find "${esc(notFoundName)}" on the list — please double check the spelling, or reach out to Maro &amp; George directly.</div>` : ''}
+      <div id="search-matches"></div>
     `);
     const go = async () => {
       const q = document.getElementById('search-input').value.trim();
       if (!q) return;
       document.getElementById('search-btn').textContent = 'Searching...';
       const result = await apiGet('searchFamily', { query: q });
-      if (result && result.found) {
-        history.replaceState(null, '', '?id=' + encodeURIComponent(result.familyId));
-        renderFamilyForm(result);
+      document.getElementById('search-btn').textContent = 'Search';
+      const matches = (result && result.matches) || [];
+      if (matches.length) {
+        renderSearchMatches(matches);
       } else {
         renderSearch(q);
       }
@@ -243,11 +260,38 @@
     document.getElementById('search-input').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
   }
 
+  // Shown right under the search box once there's at least one match —
+  // nothing here reveals RSVP answers yet, just names, so picking the
+  // wrong family by mistake can't expose or let someone edit it. The
+  // actual RSVP only loads after they confirm "yes, that's us".
+  function renderSearchMatches(matches){
+    const box = document.getElementById('search-matches');
+    if (!box) return;
+    box.innerHTML = `
+      <div class="match-list">
+        <div class="match-list-label">${matches.length > 1 ? 'A few families matched — which one is yours?' : 'Is this you?'}</div>
+        ${matches.map(m => `
+          <div class="match-card" data-id="${esc(m.familyId)}">
+            <div class="match-name">The ${esc(m.familyName)}</div>
+            <div class="match-members">${m.memberNames.map(esc).join(', ')}</div>
+            <button class="btn secondary match-confirm-btn" data-id="${esc(m.familyId)}">Yes, that's us</button>
+          </div>
+        `).join('')}
+        <div class="match-none">Don't see your family? <a href="#" id="search-again-link">Search again</a></div>
+      </div>
+    `;
+    box.querySelectorAll('.match-confirm-btn').forEach(btn => {
+      btn.addEventListener('click', () => loadFamily(btn.dataset.id));
+    });
+    document.getElementById('search-again-link').addEventListener('click', (e) => { e.preventDefault(); renderSearch(); });
+  }
+
   async function loadFamily(id){
     render(`<div class="loading">Loading your invitation...</div>`);
     try{
       const result = await apiGet('getFamilyById', { id });
       if (result && result.found) {
+        history.replaceState(null, '', '?id=' + encodeURIComponent(result.familyId));
         renderFamilyForm(result);
       } else {
         renderSearch();
