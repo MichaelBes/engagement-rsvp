@@ -47,6 +47,7 @@
   .pager{ display:flex; gap:6px; align-items:center; margin-top:14px; flex-wrap:wrap; }
   .pager button{ padding:6px 11px; border-radius:6px; border:1px solid #ddd6c4; background:#fff; font-size:12.5px; cursor:pointer; }
   .pager button.active{ background:var(--wine); color:#fff; border-color:var(--wine); }
+  .pager button:disabled{ opacity:0.45; cursor:default; }
   .toolbar{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
   .nav-link{ display:inline-block; margin: 4px 10px 4px 0; font-size:13px; color:var(--wine); font-weight:600; text-decoration:underline; }
   .placeholder-card{ border:1.5px dashed #ddd6c4; border-radius:10px; padding:14px 16px; font-size:13px; color:#8b8778; margin-bottom:10px; }
@@ -64,7 +65,8 @@
 
   const app = document.getElementById('app');
   let adminUnlocked = false;
-  const PAGE_SIZE = 10;
+  const PAGE_SIZE_OPTIONS = [10, 15, 20, 50, 'all'];
+  let familyPageSize = 10;
   let familySearch = '';
   let familyPage = 1;
   let allFamilies = [];
@@ -141,13 +143,18 @@
     document.getElementById('headcount-section').innerHTML = `
       <h2>Headcount</h2>
       <div class="summary-row">
-        <div class="summary-chip"><b>${stats.totalGuests ?? 0}</b>Total Invited</div>
+        <div class="summary-chip"><b>${stats.totalGuests ?? 0}</b>On Guest List</div>
+        <div class="summary-chip"><b>${stats.texted ?? 0}</b>Texted So Far</div>
         <div class="summary-chip"><b>${stats.ceremonyYes ?? 0}</b>Ceremony — Yes</div>
         <div class="summary-chip"><b>${stats.ceremonyNo ?? 0}</b>Ceremony — No</div>
         <div class="summary-chip"><b>${stats.receptionYes ?? 0}</b>Reception — Yes</div>
         <div class="summary-chip"><b>${stats.receptionNo ?? 0}</b>Reception — No</div>
         <div class="summary-chip"><b>${stats.pending ?? 0}</b>Not Responded</div>
         <div class="summary-chip"><b>${stats.deadlineApproaching ?? 0}</b>Deadline Approaching</div>
+      </div>
+      <div style="font-size:11.5px;color:#8b8778;margin:-6px 0 14px;">
+        "On Guest List" is everyone added so far, whether or not they've been texted yet.
+        "Texted So Far" only counts people an invite or reminder has actually gone out to.
       </div>
       ${waves.length ? `
         <table class="guest-table">
@@ -182,14 +189,20 @@
 
   function renderFamilies(){
     const filtered = getFilteredFamilies();
-    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    const showingAll = familyPageSize === 'all';
+    const pageSize = showingAll ? filtered.length || 1 : familyPageSize;
+    const totalPages = showingAll ? 1 : Math.max(1, Math.ceil(filtered.length / pageSize));
     familyPage = Math.min(familyPage, totalPages);
-    const pageItems = filtered.slice((familyPage-1)*PAGE_SIZE, familyPage*PAGE_SIZE);
+    const pageItems = showingAll ? filtered : filtered.slice((familyPage-1)*pageSize, familyPage*pageSize);
 
     document.getElementById('families-section').innerHTML = `
       <h2>Families (${filtered.length})</h2>
       <div class="toolbar">
         <input type="text" id="family-search" placeholder="Search by family or guest name" value="${esc(familySearch)}" />
+        <label style="font-size:12.5px;margin-left:auto;">Show:</label>
+        <select id="family-page-size">
+          ${PAGE_SIZE_OPTIONS.map(opt => `<option value="${opt}" ${familyPageSize===opt?'selected':''}>${opt==='all' ? 'All' : opt + ' per page'}</option>`).join('')}
+        </select>
       </div>
       <table class="guest-table">
         <thead><tr><th>Family</th><th>Wave</th><th>Deadline</th><th>Ceremony</th><th>Reception</th><th>Link</th></tr></thead>
@@ -210,20 +223,45 @@
           }).join('')}
         </tbody>
       </table>
-      <div class="pager" id="family-pager"></div>
+      ${totalPages > 1 ? `
+        <div class="pager" id="family-pager"></div>
+        <div style="font-size:11.5px;color:#8b8778;margin-top:4px;">Page ${familyPage} of ${totalPages}</div>
+      ` : ''}
     `;
 
-    const pager = document.getElementById('family-pager');
-    for (let i = 1; i <= totalPages; i++){
-      const b = document.createElement('button');
-      b.textContent = i;
-      if (i === familyPage) b.classList.add('active');
-      b.onclick = () => { familyPage = i; renderFamilies(); };
-      pager.appendChild(b);
+    if (totalPages > 1){
+      const pager = document.getElementById('family-pager');
+      const addBtn = (label, page, opts) => {
+        opts = opts || {};
+        const b = document.createElement('button');
+        b.textContent = label;
+        if (opts.active) b.classList.add('active');
+        if (opts.disabled) b.disabled = true;
+        else b.onclick = () => { familyPage = page; renderFamilies(); };
+        pager.appendChild(b);
+      };
+      addBtn('« First', 1, { disabled: familyPage === 1 });
+      addBtn('‹ Prev', familyPage - 1, { disabled: familyPage === 1 });
+      // Show a small window of page numbers around the current page (max 5
+      // numbered buttons) instead of one button per page — with 24+ pages
+      // that was turning into an unreadable 1 2 3 4 5 6 7 8 9 10... row.
+      const windowSize = 2;
+      let start = Math.max(1, familyPage - windowSize);
+      let end = Math.min(totalPages, familyPage + windowSize);
+      if (start > 1){ addBtn('1', 1); if (start > 2) addBtn('…', 0, { disabled: true }); }
+      for (let i = start; i <= end; i++) addBtn(String(i), i, { active: i === familyPage });
+      if (end < totalPages){ if (end < totalPages - 1) addBtn('…', 0, { disabled: true }); addBtn(String(totalPages), totalPages); }
+      addBtn('Next ›', familyPage + 1, { disabled: familyPage === totalPages });
+      addBtn('Last »', totalPages, { disabled: familyPage === totalPages });
     }
 
     document.getElementById('family-search').addEventListener('input', (e) => {
       familySearch = e.target.value; familyPage = 1; renderFamilies();
+    });
+    document.getElementById('family-page-size').addEventListener('change', (e) => {
+      const v = e.target.value;
+      familyPageSize = v === 'all' ? 'all' : parseInt(v, 10);
+      familyPage = 1; renderFamilies();
     });
     document.querySelectorAll('.copy-link').forEach(el => {
       el.addEventListener('click', () => {
@@ -263,6 +301,14 @@ John Smith&#9;+13125551235&#9;Smith Family&#9;1&#9;2027-03-01"></textarea>
   }
 
   function renderTexting(){
+    // These two strings must stay word-for-word identical to
+    // familyInviteMessage_() / familyReminderMessage_() in WeddingCode.gs —
+    // this is a preview only (nothing here sends anything), so the two
+    // copies have to be kept in sync by hand if the real message ever changes.
+    const EXAMPLE_LINK = SITE_URL + '?id=smith-family';
+    const inviteExample = "You're invited to Maro & George's wedding! Please RSVP for your family here: " + EXAMPLE_LINK + " (please respond by Mar 1, 2027)";
+    const reminderExample = "Reminder: please RSVP for Maro & George's wedding — " + EXAMPLE_LINK + " (deadline: Mar 1, 2027)";
+
     document.getElementById('texting-section').innerHTML = `
       <h2>Send Texts</h2>
       <div class="toolbar">
@@ -270,6 +316,18 @@ John Smith&#9;+13125551235&#9;Smith Family&#9;1&#9;2027-03-01"></textarea>
         <input type="text" id="wave-input" placeholder="e.g. 1" style="width:70px;" />
         <button class="admin-btn" id="send-invites-btn">Send Invites for Wave</button>
         <button class="admin-btn secondary" id="send-reminders-btn">Send Reminders to Non-Responders (All Waves)</button>
+      </div>
+      <div class="info-box" style="background:#F8F4EA;border:1.5px solid #ddd6c4;border-radius:8px;padding:12px 14px;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:600;color:var(--wine);margin-bottom:8px;">What the text actually says (nothing is sent by viewing this)</div>
+        <div style="font-size:12.5px;color:var(--charcoal);margin-bottom:4px;"><b>Invite:</b> <em>"${esc(inviteExample)}"</em></div>
+        <div style="font-size:12.5px;color:var(--charcoal);">
+          <b>Reminder</b> (only goes to families who haven't responded at all yet): <em>"${esc(reminderExample)}"</em>
+        </div>
+        <div style="font-size:11px;color:#8b8778;margin-top:8px;">
+          The link and deadline shown here are just an example — each family gets their own link
+          and their own deadline filled in. If a family has no deadline set, that last parenthetical
+          is left off entirely.
+        </div>
       </div>
       <div id="send-results"></div>
     `;
