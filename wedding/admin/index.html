@@ -19,7 +19,7 @@
   .admin-section{ margin-bottom:34px; }
   .admin-section h2{ font-size:12px; text-transform:uppercase; letter-spacing:0.12em; color:var(--wine); font-weight:700; margin-bottom:12px; }
   textarea.bulk{ width:100%; min-height:110px; padding:12px 14px; border-radius:8px; border:1.5px solid #ddd6c4; font-family:'Inter',monospace; font-size:13.5px; }
-  input[type=text], input[type=date], input[type=number]{ padding:9px 12px; border-radius:8px; border:1.5px solid #ddd6c4; font-size:13.5px; }
+  input[type=text], input[type=date], input[type=number]{ padding:9px 12px; border-radius:8px; border:1.5px solid #ddd6c4; font-size:16px; }
   .admin-btn{ padding:10px 18px; border-radius:8px; border:none; background:var(--wine); color:var(--ivory); font-weight:600; font-size:13.5px; cursor:pointer; margin-top:10px; margin-right:8px; }
   .admin-btn.secondary{ background:var(--indigo); }
   .admin-btn:disabled{ opacity:0.5; cursor:default; }
@@ -29,22 +29,38 @@
      recalculate every column's width based on that row's content, so the
      whole table would shift/grow and the Link column would end up too
      narrow and clip "Copy link". table-layout:fixed plus these widths keep
-     columns stable no matter what's expanded. */
-  #families-section table.guest-table th:nth-child(1), #families-section table.guest-table td:nth-child(1){ width:30%; }
-  #families-section table.guest-table th:nth-child(2), #families-section table.guest-table td:nth-child(2){ width:9%; }
-  #families-section table.guest-table th:nth-child(3), #families-section table.guest-table td:nth-child(3){ width:15%; }
-  #families-section table.guest-table th:nth-child(4), #families-section table.guest-table td:nth-child(4){ width:15%; }
-  #families-section table.guest-table th:nth-child(5), #families-section table.guest-table td:nth-child(5){ width:15%; }
-  #families-section table.guest-table th:nth-child(6), #families-section table.guest-table td:nth-child(6){ width:16%; }
+     columns stable no matter what's expanded. Scoped to min-width:641px —
+     on a phone the table below switches to a stacked-card layout instead,
+     and these desktop percentage widths must not fight that (they used to,
+     which is why "Copy link" was wrapping one letter per line on a phone). */
+  @media (min-width:641px){
+    #families-section table.guest-table th:nth-child(1), #families-section table.guest-table td:nth-child(1){ width:30%; }
+    #families-section table.guest-table th:nth-child(2), #families-section table.guest-table td:nth-child(2){ width:9%; }
+    #families-section table.guest-table th:nth-child(3), #families-section table.guest-table td:nth-child(3){ width:15%; }
+    #families-section table.guest-table th:nth-child(4), #families-section table.guest-table td:nth-child(4){ width:15%; }
+    #families-section table.guest-table th:nth-child(5), #families-section table.guest-table td:nth-child(5){ width:15%; }
+    #families-section table.guest-table th:nth-child(6), #families-section table.guest-table td:nth-child(6){ width:16%; }
+  }
   table.guest-table td{ overflow-wrap:break-word; }
   table.guest-table th{ text-align:left; text-transform:uppercase; font-size:10.5px; letter-spacing:0.1em; color:#8b8778; padding:8px 6px; border-bottom:1.5px solid #eee6d4; }
   table.guest-table td{ padding:9px 6px; border-bottom:1px solid #f0ebdd; vertical-align:top; }
   @media (max-width:640px){
     table.guest-table thead{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; padding:0; margin:-1px; }
     table.guest-table, table.guest-table tbody, table.guest-table tr, table.guest-table td{ display:block; width:100%; }
-    table.guest-table tr{ background:#fff; border:1px solid #eee6d4; border-radius:10px; padding:10px 12px; margin-bottom:12px; }
-    table.guest-table td{ border-bottom:none; padding:6px 0; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; text-align:right; }
-    table.guest-table td::before{ content:attr(data-label); font-size:10.5px; text-transform:uppercase; letter-spacing:0.08em; color:#8b8778; font-weight:700; text-align:left; flex-shrink:0; }
+    table.guest-table tr{ background:#fff; border:1px solid #eee6d4; border-radius:12px; padding:0 14px; margin-bottom:12px; }
+    table.guest-table td{ border-bottom:1px solid #f4efe3; padding:9px 0; display:flex; justify-content:space-between; align-items:center; gap:12px; text-align:right; }
+    table.guest-table tr td:last-child{ border-bottom:none; }
+    table.guest-table td::before{ content:attr(data-label); font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:#8b8778; font-weight:700; text-align:left; flex-shrink:0; }
+    /* The family name / wave number reads as the card's own title instead
+       of just another label:value row — no label needed, full width, a
+       bigger serif font so it's easy to scan a long list on a phone. */
+    table.guest-table td.row-title{ display:block; text-align:left; padding:13px 0 9px; font-family:'Cormorant Garamond',serif; font-size:19px; font-weight:600; color:var(--indigo); }
+    table.guest-table td.row-title::before{ content:none; }
+    /* A real tap target instead of tiny underlined text. */
+    table.guest-table td .copy-link{ display:inline-block; background:var(--wine); color:#fff; text-decoration:none; padding:6px 14px; border-radius:20px; font-size:12px; font-weight:600; word-break:normal; }
+    /* The expand row's member-detail grid needs to stack top-to-bottom, not
+       split into a label/value row like every other cell here. */
+    .family-expand-row td{ display:block !important; }
   }
   .pill{ display:inline-block; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:700; }
   .pill.yes{ background:#EFE6E8; color:var(--wine); }
@@ -53,7 +69,7 @@
   .pill.late{ background:#F6DCCB; color:#8A3E1F; }
   .copy-link{ font-size:12px; color:var(--wine); cursor:pointer; text-decoration:underline; word-break:break-all; }
   .admin-login{ max-width:340px; margin:100px auto 0; text-align:center; }
-  .admin-login input{ width:100%; padding:12px 14px; border-radius:8px; border:1.5px solid #ddd6c4; margin:14px 0; font-size:15px; }
+  .admin-login input{ width:100%; padding:12px 14px; border-radius:8px; border:1.5px solid #ddd6c4; margin:14px 0; font-size:16px; }
   .summary-row{ display:flex; gap:14px; margin-bottom:18px; flex-wrap:wrap; }
   .summary-chip{ background:#F2EDE0; padding:10px 16px; border-radius:10px; font-size:12.5px; }
   .summary-chip b{ display:block; font-family:'Cormorant Garamond',serif; font-size:22px; color:var(--indigo); }
@@ -66,7 +82,7 @@
   .placeholder-card{ border:1.5px dashed #ddd6c4; border-radius:10px; padding:14px 16px; font-size:13px; color:#8b8778; margin-bottom:10px; }
   .family-name-toggle{ cursor:pointer; user-select:none; }
   .family-name-toggle:hover{ color:var(--wine); }
-  .family-expand-row td{ background:#FBF9F2; padding:10px 16px 14px !important; display:block !important; text-align:left !important; width:auto !important; }
+  .family-expand-row td{ background:#FBF9F2; padding:10px 16px 14px !important; text-align:left !important; }
   /* A responsive grid instead of one-member-per-line — on a laptop-width
      screen this naturally fits 2-3 members per row side by side instead of
      stacking everyone vertically and pushing the page down; on a narrow
@@ -205,7 +221,7 @@
           <tbody>
             ${waves.map(w => `
               <tr>
-                <td data-label="Wave">Wave ${esc(w.wave)}</td>
+                <td data-label="Wave" class="row-title">Wave ${esc(w.wave)}</td>
                 <td data-label="Deadline">${esc(w.deadline || '—')}</td>
                 <td data-label="Families">${w.familyCount}</td>
                 <td data-label="Responded">${w.respondedCount} / ${w.familyCount}</td>
@@ -275,7 +291,7 @@
             `;
             return `
             <tr class="family-row" data-id="${esc(f.familyId)}">
-              <td data-label="Family"><span class="family-name-toggle">${isOpen ? '&#9662;' : '&#9656;'} ${esc(f.familyName)} (${total})</span></td>
+              <td data-label="Family" class="row-title"><span class="family-name-toggle">${isOpen ? '&#9662;' : '&#9656;'} ${esc(f.familyName)} (${total})</span></td>
               <td data-label="Wave">${esc(f.wave||'—')}</td>
               <td data-label="Deadline">${esc(f.deadline||'—')}</td>
               <td data-label="Ceremony">${cerYes}/${total} yes</td>
