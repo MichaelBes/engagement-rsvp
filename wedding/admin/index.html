@@ -46,7 +46,7 @@
     table.guest-table td{ border-bottom:none; padding:6px 0; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; text-align:right; }
     table.guest-table td::before{ content:attr(data-label); font-size:10.5px; text-transform:uppercase; letter-spacing:0.08em; color:#8b8778; font-weight:700; text-align:left; flex-shrink:0; }
   }
-  .pill{ padding:3px 9px; border-radius:20px; font-size:11px; font-weight:700; }
+  .pill{ display:inline-block; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:700; }
   .pill.yes{ background:#EFE6E8; color:var(--wine); }
   .pill.no{ background:#E7E9F0; color:var(--indigo); }
   .pill.pending{ background:#f2ede0; color:#8b8778; }
@@ -75,7 +75,7 @@
   .member-detail-card{ font-size:12.5px; padding:8px 10px; background:#fff; border:1px solid #eee6d4; border-radius:8px; }
   .member-detail-name{ font-weight:600; color:var(--indigo); margin-bottom:2px; }
   .member-detail-phone{ color:#8b8778; }
-  .member-detail-pill{ color:#8b8778; }
+  .member-detail-pill{ color:#8b8778; margin-top:4px; line-height:1.4; }
   .member-detail-opened{ font-size:11px; color:var(--wine); font-weight:600; padding:0 0 8px 18px; }
   .testing-card{ border:1.5px solid #ddd6c4; border-radius:10px; padding:14px 16px; margin-bottom:12px; }
   .testing-card-title{ font-weight:700; font-size:13.5px; color:var(--indigo); margin-bottom:4px; }
