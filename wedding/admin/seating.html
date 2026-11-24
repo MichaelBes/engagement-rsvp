@@ -379,7 +379,12 @@
           // table correctly), but its text is counter-rotated to stay upright
           // no matter which way the table itself is turned.
           if (g && showNameLabels){
-            const labelDist = 30; // how far out from the seat the label sits
+            // Alternate how far out each label sits, near/far, by seat index.
+            // Adjacent seats around a table are adjacent indices (seatPositions
+            // lays them out in order), so this is what keeps two neighboring
+            // names from landing on top of each other when seats are packed
+            // close together — one sits closer in, the next reaches further out.
+            const labelDist = 30 + (i % 2) * 18;
             const lx = pos.x + pos.dirX * labelDist;
             const ly = pos.y + pos.dirY * labelDist;
             const lineLen = labelDist - 13; // start just past the seat's own radius
