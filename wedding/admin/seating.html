@@ -63,8 +63,19 @@
     border-radius:50%; background:#fff; border:1.5px dashed #c8c0ab; z-index:5;
     display:flex; align-items:center; justify-content:center; font-size:9.5px; color:#aaa; cursor:pointer;
   }
-  .seat.filled{ border-style:solid; border-color:var(--wine); background:var(--wine); color:#fff; font-weight:700; }
+  .seat.filled{ border-style:solid; border-color:var(--wine); background:var(--wine); color:#fff; font-weight:700; cursor:grab; }
+  .seat.filled:active{ cursor:grabbing; }
   .seat.drop-hover{ outline:2px solid var(--gold); outline-offset:1px; }
+
+  .seat-leader{
+    position:absolute; height:1px; background:rgba(201,162,75,0.6);
+    transform-origin:0 0; z-index:4; pointer-events:none;
+  }
+  .seat-name-label{
+    position:absolute; z-index:6; background:#fff; border:1px solid #ddd6c4; border-radius:5px;
+    padding:2px 7px; font-size:10px; color:var(--charcoal); white-space:nowrap;
+    box-shadow:0 2px 5px rgba(0,0,0,0.18); pointer-events:none;
+  }
 
   .resize-handle{
     position:absolute; right:-7px; bottom:-7px; width:14px; height:14px; z-index:25;
@@ -100,6 +111,7 @@
   <button class="btn secondary" id="add-headtable">+ Head Table</button>
   <button class="btn secondary" id="add-dancefloor">+ Dance Floor</button>
   <div class="spacer"></div>
+  <button class="btn secondary" id="toggle-names-btn">Hide Names</button>
   <button class="btn secondary" id="print-btn">Print</button>
   <button class="btn" id="save-btn">Save</button>
 </div>
@@ -152,6 +164,7 @@
   let tables = [];
   let nextNum = { round:1, rect:1, sweetheart:1, headtable:1, dancefloor:1 };
   let searchQuery = '';
+  let showNameLabels = true; // toggled by the "Hide Names" / "Show Names" toolbar button
 
   // One shared drag state for move/resize/rotate, instead of each table
   // adding its own document-level listeners on every render (which would
@@ -228,7 +241,11 @@
     }).join('');
     list.querySelectorAll('.guest-chip[draggable="true"]').forEach(chip => {
       chip.addEventListener('dragstart', (e) => {
-        e.dataTransfer.setData('text/plain', chip.dataset.guestId);
+        // Same JSON shape as a seat-to-seat drag (see renderTables), just
+        // with no "from" seat — this lets one drop handler on the seat
+        // understand both "coming from the sidebar" and "coming from
+        // another seat" without needing two separate code paths.
+        e.dataTransfer.setData('text/plain', JSON.stringify({ guestId: chip.dataset.guestId, fromTableId: null, fromSeatIndex: null }));
       });
     });
   }
@@ -239,7 +256,10 @@
       const r = (shapeW / 2) + 16;
       for (let i = 0; i < seatCount; i++){
         const angle = (2 * Math.PI * i / seatCount) - Math.PI/2;
-        pts.push({ x: shapeW/2 + r * Math.cos(angle), y: shapeH/2 + r * Math.sin(angle) });
+        // dirX/dirY: unit vector pointing straight out from the table center
+        // through this seat — used to place the optional name label further
+        // out along the same line, so it reads as "branching off" the seat.
+        pts.push({ x: shapeW/2 + r * Math.cos(angle), y: shapeH/2 + r * Math.sin(angle), dirX: Math.cos(angle), dirY: Math.sin(angle) });
       }
     } else {
       // rect / headtable: split along top and bottom edges, spaced across whatever the current width is
@@ -250,7 +270,7 @@
         const sideCount = i < perSide ? perSide : seatCount - perSide;
         const x = (shapeW / (sideCount + 1)) * (idxInSide + 1);
         const y = side === -1 ? -16 : shapeH + 16;
-        pts.push({ x, y });
+        pts.push({ x, y, dirX: 0, dirY: side }); // straight up (top row) or straight down (bottom row)
       }
     }
     return pts;
@@ -312,14 +332,35 @@
           seat.title = g ? g.name : 'Empty seat';
           seat.dataset.seatIndex = i;
 
+          if (g){
+            // A seated guest can be picked up and dropped on a different seat
+            // (same table or a different one) instead of having to click to
+            // remove them and then drag them fresh from the sidebar.
+            seat.draggable = true;
+            seat.addEventListener('dragstart', (e) => {
+              e.stopPropagation();
+              e.dataTransfer.setData('text/plain', JSON.stringify({ guestId, fromTableId: t.id, fromSeatIndex: i }));
+            });
+          }
+
           seat.addEventListener('dragover', (e) => { e.preventDefault(); seat.classList.add('drop-hover'); });
           seat.addEventListener('dragleave', () => seat.classList.remove('drop-hover'));
           seat.addEventListener('drop', (e) => {
             e.preventDefault();
             seat.classList.remove('drop-hover');
-            const gid = e.dataTransfer.getData('text/plain');
+            const raw = e.dataTransfer.getData('text/plain');
+            if (!raw) return;
+            let payload;
+            try { payload = JSON.parse(raw); } catch(err){ payload = { guestId: raw, fromTableId: null, fromSeatIndex: null }; }
+            const gid = payload.guestId;
             if (!gid) return;
+            if (payload.fromTableId === t.id && payload.fromSeatIndex === i) return; // dropped back on itself
             if (t.seats[i]) { alert('That seat is already taken.'); return; }
+            // If this guest was already seated somewhere else, clear that seat out.
+            if (payload.fromTableId){
+              const sourceTable = tables.find(x => x.id === payload.fromTableId);
+              if (sourceTable && sourceTable.seats[payload.fromSeatIndex] === gid) sourceTable.seats[payload.fromSeatIndex] = null;
+            }
             t.seats[i] = gid;
             renderGuestList(); renderTables();
           });
@@ -331,6 +372,38 @@
             }
           });
           rotateBox.appendChild(seat);
+
+          // Optional name label "branching off" the seat, so a full table can
+          // be read at a glance without hovering over every seat. Lives in
+          // the same rotated box as the seat (so it moves/rotates with the
+          // table correctly), but its text is counter-rotated to stay upright
+          // no matter which way the table itself is turned.
+          if (g && showNameLabels){
+            const labelDist = 30; // how far out from the seat the label sits
+            const lx = pos.x + pos.dirX * labelDist;
+            const ly = pos.y + pos.dirY * labelDist;
+            const lineLen = labelDist - 13; // start just past the seat's own radius
+            const lineAngle = Math.atan2(pos.dirY, pos.dirX) * 180 / Math.PI;
+
+            const leader = document.createElement('div');
+            leader.className = 'seat-leader';
+            leader.style.left = pos.x + 'px';
+            leader.style.top = pos.y + 'px';
+            leader.style.width = lineLen + 'px';
+            leader.style.transform = `rotate(${lineAngle}deg)`;
+            rotateBox.appendChild(leader);
+
+            const label = document.createElement('div');
+            label.className = 'seat-name-label';
+            label.style.left = lx + 'px';
+            label.style.top = ly + 'px';
+            // Anchor the label on whichever side keeps it from drifting back
+            // over the table: to the right if pointing rightish, left if
+            // pointing leftish, centered if pointing mostly up/down.
+            label.style.transform = `translate(${pos.dirX > 0.3 ? '0%' : pos.dirX < -0.3 ? '-100%' : '-50%'}, -50%)`;
+            label.innerHTML = `<span style="transform:rotate(${-rotation}deg);display:inline-block;">${esc(g.name)}</span>`;
+            rotateBox.appendChild(label);
+          }
         });
       }
 
@@ -408,6 +481,11 @@
   document.getElementById('add-headtable').onclick = () => addTable('headtable');
   document.getElementById('add-dancefloor').onclick = () => addTable('dancefloor');
   document.getElementById('print-btn').onclick = () => window.print();
+  document.getElementById('toggle-names-btn').onclick = (e) => {
+    showNameLabels = !showNameLabels;
+    e.target.textContent = showNameLabels ? 'Hide Names' : 'Show Names';
+    renderTables();
+  };
   document.getElementById('guest-search').addEventListener('input', (e) => { searchQuery = e.target.value; renderGuestList(); });
   document.getElementById('save-btn').onclick = async () => {
     const btn = document.getElementById('save-btn');

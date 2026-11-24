@@ -40,7 +40,12 @@ h1.names{ font-family:'Cormorant Garamond',serif; font-weight:600; font-size:46p
 .nav-tabs a.current{ background:var(--gold); border-color:var(--gold); color:var(--indigo); }
 
 /* ---- Main content width ---- */
-.content-wrap{ width:100%; max-width:1100px; }
+/* flex:1 lets this stretch to fill any leftover vertical space in .stage,
+   which is what pushes the footer down to the bottom of the screen on
+   short pages (FAQ with few questions, a short RSVP form, etc.) instead of
+   the footer just trailing right after the content block. On a tall page
+   this does nothing — the content already fills the space on its own. */
+.content-wrap{ width:100%; max-width:1100px; flex:1 0 auto; }
 
 /* Two-column hero — only used on the homepage. Collapses to one column
    below 900px so the phone layout stays exactly as narrow/clean as before. */
