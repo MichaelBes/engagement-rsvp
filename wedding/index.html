@@ -291,17 +291,34 @@
   }
 
   async function loadFamily(id){
-    render(`<div class="loading">Loading your invitation...</div>`);
+    // Apps Script's own response time is the slow part here, not anything in
+    // this page, so the one thing we can actually do about "it takes a
+    // while, and shows a blank/loading screen every time" is avoid making
+    // the person wait on it twice for the same family — e.g. clicking Travel
+    // and then coming back, or using the browser's Back button. If we've
+    // shown this exact family before this session, paint it instantly from
+    // that cached copy, then quietly re-fetch a fresh copy underneath and
+    // swap it in if anything changed. First time loading a family, there's
+    // nothing to show yet, so it still falls back to the loading message.
+    const cacheKey = 'wedding_family_cache_' + id;
+    let cached = null;
+    try { cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null'); } catch(e){}
+    if (cached && cached.found) {
+      renderFamilyForm(cached);
+    } else {
+      render(`<div class="loading">Loading your invitation...</div>`);
+    }
     try{
       const result = await apiGet('getFamilyById', { id });
       if (result && result.found) {
+        try { sessionStorage.setItem(cacheKey, JSON.stringify(result)); } catch(e){}
         history.replaceState(null, '', '?id=' + encodeURIComponent(result.familyId));
         renderFamilyForm(result);
-      } else {
+      } else if (!cached) {
         renderSearch();
       }
     }catch(e){
-      render(`<div class="error-box">Something went wrong loading your invitation. Please try again shortly.</div>`);
+      if (!cached) render(`<div class="error-box">Something went wrong loading your invitation. Please try again shortly.</div>`);
     }
   }
 

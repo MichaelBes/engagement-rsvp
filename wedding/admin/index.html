@@ -23,7 +23,20 @@
   .admin-btn{ padding:10px 18px; border-radius:8px; border:none; background:var(--wine); color:var(--ivory); font-weight:600; font-size:13.5px; cursor:pointer; margin-top:10px; margin-right:8px; }
   .admin-btn.secondary{ background:var(--indigo); }
   .admin-btn:disabled{ opacity:0.5; cursor:default; }
-  table.guest-table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  table.guest-table{ width:100%; border-collapse:collapse; font-size:13.5px; table-layout:fixed; }
+  /* Fixed column widths for the Families table specifically — without this,
+     expanding a family's dropdown (a wide colspan row) was making the browser
+     recalculate every column's width based on that row's content, so the
+     whole table would shift/grow and the Link column would end up too
+     narrow and clip "Copy link". table-layout:fixed plus these widths keep
+     columns stable no matter what's expanded. */
+  #families-section table.guest-table th:nth-child(1), #families-section table.guest-table td:nth-child(1){ width:30%; }
+  #families-section table.guest-table th:nth-child(2), #families-section table.guest-table td:nth-child(2){ width:9%; }
+  #families-section table.guest-table th:nth-child(3), #families-section table.guest-table td:nth-child(3){ width:15%; }
+  #families-section table.guest-table th:nth-child(4), #families-section table.guest-table td:nth-child(4){ width:15%; }
+  #families-section table.guest-table th:nth-child(5), #families-section table.guest-table td:nth-child(5){ width:15%; }
+  #families-section table.guest-table th:nth-child(6), #families-section table.guest-table td:nth-child(6){ width:16%; }
+  table.guest-table td{ overflow-wrap:break-word; }
   table.guest-table th{ text-align:left; text-transform:uppercase; font-size:10.5px; letter-spacing:0.1em; color:#8b8778; padding:8px 6px; border-bottom:1.5px solid #eee6d4; }
   table.guest-table td{ padding:9px 6px; border-bottom:1px solid #f0ebdd; vertical-align:top; }
   @media (max-width:640px){
@@ -53,7 +66,7 @@
   .placeholder-card{ border:1.5px dashed #ddd6c4; border-radius:10px; padding:14px 16px; font-size:13px; color:#8b8778; margin-bottom:10px; }
   .family-name-toggle{ cursor:pointer; user-select:none; }
   .family-name-toggle:hover{ color:var(--wine); }
-  .family-expand-row td{ background:#FBF9F2; padding:10px 16px 14px !important; display:block !important; text-align:left !important; }
+  .family-expand-row td{ background:#FBF9F2; padding:10px 16px 14px !important; display:block !important; text-align:left !important; width:auto !important; }
   .member-detail-row{ display:flex; flex-wrap:wrap; gap:14px; align-items:center; padding:6px 0 6px 18px; font-size:12.5px; border-bottom:1px solid #eee6d4; }
   .member-detail-row:last-child{ border-bottom:none; }
   .member-detail-name{ font-weight:600; color:var(--indigo); min-width:140px; }
@@ -124,15 +137,25 @@
   // ---------------------------------------------------------------------
   async function renderDashboard(){
     app.innerHTML = `<div class="loading" style="text-align:center;padding:60px 0;">Loading...</div>`;
-    const [stats, families] = await Promise.all([
-      apiGet('getHeadcountStats'),
-      apiGet('getAllFamilies'),
-    ]);
+    // One combined call instead of two separate ones — getHeadcountStats and
+    // getAllFamilies used to each independently re-read and re-parse the
+    // whole guest list sheet, and fire as two separate round trips to the
+    // Apps Script web app (which has its own per-request startup cost on
+    // top of the actual work). getDashboardData() does both from a single
+    // sheet read in one request, which is noticeably faster once there are
+    // a couple hundred guests on the list.
+    const dashboard = await apiGet('getDashboardData');
+    const stats = dashboard.stats || {};
+    const families = { families: dashboard.families || [] };
     allFamilies = families.families || [];
     app.innerHTML = `
       <h1>Wedding Admin</h1>
       <div class="sub">Family RSVPs, texting, and planning tools.</div>
-      <div style="margin-bottom:18px;font-size:12.5px;color:#8b8778;">Looking for the engagement guest list? &nbsp;<a href="/engagement/?admin=1" style="color:var(--wine);font-weight:600;text-decoration:underline;">Go to Engagement Admin &rarr;</a></div>
+      <div style="margin-bottom:18px;font-size:12.5px;color:#8b8778;">
+        <a href="../" style="color:var(--wine);font-weight:600;text-decoration:underline;">&larr; Back to Wedding Site</a>
+        &nbsp;&middot;&nbsp;
+        Looking for the engagement guest list? &nbsp;<a href="/engagement/?admin=1" style="color:var(--wine);font-weight:600;text-decoration:underline;">Go to Engagement Admin &rarr;</a>
+      </div>
 
       <div class="admin-section" id="headcount-section"></div>
       <div class="admin-section" id="families-section"></div>
@@ -434,7 +457,7 @@ John Smith&#9;+13125551235&#9;Smith Family&#9;1&#9;2027-03-01"></textarea>
       <div class="testing-card">
         <div class="testing-card-title">Clear the seating chart</div>
         <div class="testing-card-desc">Removes every table and every seat assignment on the seating chart — a blank floor to start over with. Doesn't touch the guest list or anyone's RSVP.</div>
-        <button class="btn secondary" id="clear-seating-btn" style="width:auto;padding:9px 16px;">Clear seating chart</button>
+        <button class="admin-btn secondary" id="clear-seating-btn">Clear seating chart</button>
       </div>
       <div class="testing-card">
         <div class="testing-card-title" style="color:var(--wine);">Reset ALL RSVP responses</div>
@@ -446,7 +469,7 @@ John Smith&#9;+13125551235&#9;Smith Family&#9;1&#9;2027-03-01"></textarea>
           instead of using this.
         </div>
         <input type="text" id="reset-confirm-input" placeholder='Type RESET to confirm' style="padding:9px 10px;border-radius:7px;border:1.5px solid #ddd6c4;font-size:13px;margin-right:8px;" />
-        <button class="btn secondary" id="reset-rsvps-btn" style="width:auto;padding:9px 16px;background:var(--wine);" disabled>Reset all RSVP responses</button>
+        <button class="admin-btn" id="reset-rsvps-btn" disabled>Reset all RSVP responses</button>
       </div>
       <div id="testing-tools-result" style="font-size:12.5px;margin-top:8px;"></div>
     `;
