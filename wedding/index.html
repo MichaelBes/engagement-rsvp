@@ -270,14 +270,18 @@
     box.innerHTML = `
       <div class="match-list">
         <div class="match-list-label">${matches.length > 1 ? 'A few families matched — which one is yours?' : 'Is this you?'}</div>
-        ${matches.map(m => `
-          <div class="match-card" data-id="${esc(m.familyId)}">
-            <div class="match-name">The ${esc(m.familyName)}</div>
-            <div class="match-members">${m.memberNames.map(esc).join(', ')}</div>
-            <button class="btn secondary match-confirm-btn" data-id="${esc(m.familyId)}">Yes, that's us</button>
-          </div>
-        `).join('')}
-        <div class="match-none">Don't see your family? <a href="#" id="search-again-link">Search again</a></div>
+        <div class="match-grid">
+          ${matches.map(m => `
+            <div class="match-card" data-id="${esc(m.familyId)}">
+              <div class="match-name">The ${esc(m.familyName)}</div>
+              <div class="match-members">
+                ${m.memberNames.map(n => `<div class="match-member-name">${esc(n)}</div>`).join('')}
+              </div>
+              <button type="button" class="match-confirm-btn" data-id="${esc(m.familyId)}">Yes, that's us</button>
+            </div>
+          `).join('')}
+        </div>
+        <div class="match-none">Don't see your family? <a href="#" id="search-again-link" class="back-link" style="margin-bottom:0;">Search again</a></div>
       </div>
     `;
     box.querySelectorAll('.match-confirm-btn').forEach(btn => {
