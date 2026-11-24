@@ -402,11 +402,20 @@
             label.className = 'seat-name-label';
             label.style.left = lx + 'px';
             label.style.top = ly + 'px';
+            // The label box itself (background, border, and text together)
+            // needs to counter-rotate as a whole, not just the text inside
+            // it — rotating only the text left it floating outside the
+            // (still-tilted) box whenever the table was rotated. Combining
+            // the corner-alignment translate with rotate(-rotation) here
+            // keeps the box's position correctly following the seat (which
+            // already rotates with the table via the parent .rotate-box)
+            // while the box + text together stay level and readable.
             // Anchor the label on whichever side keeps it from drifting back
             // over the table: to the right if pointing rightish, left if
             // pointing leftish, centered if pointing mostly up/down.
-            label.style.transform = `translate(${pos.dirX > 0.3 ? '0%' : pos.dirX < -0.3 ? '-100%' : '-50%'}, -50%)`;
-            label.innerHTML = `<span style="transform:rotate(${-rotation}deg);display:inline-block;">${esc(g.name)}</span>`;
+            const alignX = pos.dirX > 0.3 ? '0%' : pos.dirX < -0.3 ? '-100%' : '-50%';
+            label.style.transform = `translate(${alignX}, -50%) rotate(${-rotation}deg)`;
+            label.textContent = g.name;
             rotateBox.appendChild(label);
           }
         });
