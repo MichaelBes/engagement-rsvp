@@ -37,7 +37,7 @@
     display:none; gap:2px; background:#fff; border-radius:6px; padding:3px; box-shadow:0 4px 10px rgba(0,0,0,0.3);
     z-index:30; white-space:nowrap;
   }
-  .table-wrap:hover .table-toolbar{ display:flex; }
+  .table-wrap.selected .table-toolbar{ display:flex; }
   .table-toolbar button{ border:none; background:none; cursor:pointer; font-size:11px; padding:3px 6px; color:var(--indigo); border-radius:4px; }
   .table-toolbar button:hover{ background:#F2EDE0; color:var(--wine); }
 
@@ -77,17 +77,25 @@
     box-shadow:0 2px 5px rgba(0,0,0,0.18); pointer-events:none;
   }
 
+  /* Resize/rotate handles only show on the selected table (click a table to
+     select it) — with several tables near each other, having every table's
+     handles visible at once got crowded and it was easy to grab the wrong
+     one's handle. */
   .resize-handle{
+    display:none;
     position:absolute; right:-7px; bottom:-7px; width:14px; height:14px; z-index:25;
     background:var(--gold); border:1.5px solid #fff; border-radius:3px; cursor:nwse-resize;
   }
+  .table-wrap.selected .resize-handle{ display:block; }
 
   .rotate-handle{
+    display:none;
     position:absolute; top:-82px; left:50%; transform:translateX(-50%); z-index:25;
     width:22px; height:22px; border-radius:50%; background:var(--gold); color:#fff;
-    display:flex; align-items:center; justify-content:center; font-size:12px; cursor:grab;
+    align-items:center; justify-content:center; font-size:12px; cursor:grab;
     border:1.5px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,0.35);
   }
+  .table-wrap.selected .rotate-handle{ display:flex; }
   .rotate-handle::after{
     content:""; position:absolute; top:22px; left:50%; width:1px; height:30px;
     background:rgba(228,205,151,0.6); transform:translateX(-50%); z-index:-1;
@@ -111,7 +119,6 @@
   <button class="btn secondary" id="add-headtable">+ Head Table</button>
   <button class="btn secondary" id="add-dancefloor">+ Dance Floor</button>
   <div class="spacer"></div>
-  <button class="btn secondary" id="toggle-names-btn">Hide Names</button>
   <button class="btn secondary" id="print-btn">Print</button>
   <button class="btn" id="save-btn">Save</button>
 </div>
@@ -164,7 +171,7 @@
   let tables = [];
   let nextNum = { round:1, rect:1, sweetheart:1, headtable:1, dancefloor:1 };
   let searchQuery = '';
-  let showNameLabels = true; // toggled by the "Hide Names" / "Show Names" toolbar button
+  let selectedTableId = null; // which table's handles/toolbar are currently visible
 
   // One shared drag state for move/resize/rotate, instead of each table
   // adding its own document-level listeners on every render (which would
@@ -209,6 +216,17 @@
   document.addEventListener('mouseup', () => {
     if (activeOp && activeOp.type === 'rotate') renderTables(); // resync seat hit-areas after a free rotation
     activeOp = null;
+  });
+
+  // Clicking blank floor space (not any table) deselects, hiding that
+  // table's handles/toolbar again. Attached once here, not inside
+  // renderTables, since #floor itself is never recreated on a re-render —
+  // only its contents are.
+  document.getElementById('floor').addEventListener('mousedown', (e) => {
+    if (e.target.id === 'floor' && selectedTableId !== null){
+      selectedTableId = null;
+      renderTables();
+    }
   });
 
   const TYPE_DEFAULTS = {
@@ -281,6 +299,61 @@
     return { w: t.width || def.w, h: t.height || def.h };
   }
 
+  // Rough estimate of a rendered label's on-screen width — doesn't need to
+  // be exact, just close enough to decide whether two labels would collide.
+  function estimateLabelWidth(name){ return Math.max(40, name.length * 6.3 + 16); }
+  const LABEL_HEIGHT = 20;
+  const LABEL_DIST_TIERS = [30, 48, 66, 84, 102, 120];
+
+  /**
+   * Picks how far out each occupied seat's name label should sit, choosing
+   * the closest distance tier that doesn't collide with a label already
+   * placed for an earlier seat at this table. Unlike a simple fixed
+   * near/far alternation (which only reliably separates seats that are
+   * directly next to each other), this actually checks real on-screen
+   * bounding boxes — computed by applying the table's current rotation to
+   * each candidate position — so two labels won't overlap regardless of
+   * how many seats apart they are, how long the names are, or which way
+   * the table is turned. Returns an array parallel to `positions`, with
+   * `null` for empty seats.
+   */
+  function assignLabelDistances(positions, seatNames, w, h, rotation){
+    const rotRad = rotation * Math.PI / 180;
+    const cx = w / 2, cy = h / 2;
+    function toScreen(lx, ly){
+      const dx = lx - cx, dy = ly - cy;
+      return {
+        sx: cx + dx * Math.cos(rotRad) - dy * Math.sin(rotRad),
+        sy: cy + dx * Math.sin(rotRad) + dy * Math.cos(rotRad),
+      };
+    }
+    const placedBoxes = [];
+    const distances = new Array(positions.length).fill(null);
+
+    positions.forEach((pos, i) => {
+      const name = seatNames[i];
+      if (!name) return;
+      const labelW = estimateLabelWidth(name);
+      const alignX = pos.dirX > 0.3 ? 'right' : pos.dirX < -0.3 ? 'left' : 'center';
+      let chosenDist = LABEL_DIST_TIERS[LABEL_DIST_TIERS.length - 1];
+      let chosenBox = null;
+      for (const dist of LABEL_DIST_TIERS){
+        const lx = pos.x + pos.dirX * dist;
+        const ly = pos.y + pos.dirY * dist;
+        const { sx, sy } = toScreen(lx, ly);
+        const left = alignX === 'right' ? sx : alignX === 'left' ? sx - labelW : sx - labelW / 2;
+        const box = { left, right: left + labelW, top: sy - LABEL_HEIGHT / 2, bottom: sy + LABEL_HEIGHT / 2 };
+        const collides = placedBoxes.some(b => !(box.right < b.left || box.left > b.right || box.bottom < b.top || box.top > b.bottom));
+        chosenBox = box;
+        if (!collides){ chosenDist = dist; break; }
+      }
+      placedBoxes.push(chosenBox);
+      distances[i] = chosenDist;
+    });
+
+    return distances;
+  }
+
   function renderTables(){
     const floor = document.getElementById('floor');
     floor.innerHTML = '';
@@ -290,7 +363,7 @@
       const rotation = t.rotation || 0;
 
       const wrap = document.createElement('div');
-      wrap.className = 'table-wrap';
+      wrap.className = 'table-wrap' + (t.id === selectedTableId ? ' selected' : '');
       wrap.style.left = t.x + 'px';
       wrap.style.top = t.y + 'px';
       wrap.style.width = w + 'px';
@@ -300,6 +373,7 @@
       wrap.innerHTML = `
         <div class="table-toolbar">
           <button data-act="dup" title="Duplicate">Dup</button>
+          <button data-act="names" title="Toggle this table's name labels">${t.namesHidden ? 'Show Names' : 'Hide Names'}</button>
           <button data-act="del" title="Delete">Del</button>
         </div>
         <div class="rotate-box" style="width:${w}px;height:${h}px;transform:rotate(${rotation}deg);">
@@ -321,6 +395,13 @@
 
       if (t.type !== 'dancefloor'){
         const positions = seatPositions(t.type, t.seats.length, w, h);
+        const showNames = !t.namesHidden;
+        const seatNames = positions.map((pos, i) => {
+          const guestId = t.seats[i];
+          const g = guestId ? guests.find(x => x.id === guestId) : null;
+          return g ? g.name : null;
+        });
+        const labelDistances = showNames ? assignLabelDistances(positions, seatNames, w, h, rotation) : [];
         positions.forEach((pos, i) => {
           const guestId = t.seats[i];
           const g = guestId ? guests.find(x => x.id === guestId) : null;
@@ -378,13 +459,14 @@
           // the same rotated box as the seat (so it moves/rotates with the
           // table correctly), but its text is counter-rotated to stay upright
           // no matter which way the table itself is turned.
-          if (g && showNameLabels){
-            // Alternate how far out each label sits, near/far, by seat index.
-            // Adjacent seats around a table are adjacent indices (seatPositions
-            // lays them out in order), so this is what keeps two neighboring
-            // names from landing on top of each other when seats are packed
-            // close together — one sits closer in, the next reaches further out.
-            const labelDist = 30 + (i % 2) * 18;
+          if (g && showNames){
+            // How far out this particular label sits was already worked out
+            // above (assignLabelDistances) by actually checking for overlap
+            // against every other label already placed at this table — not
+            // just alternating a fixed near/far pattern — so this stays
+            // collision-free regardless of how many seats apart two guests
+            // are, how long their names are, or how the table is rotated.
+            const labelDist = labelDistances[i];
             const lx = pos.x + pos.dirX * labelDist;
             const ly = pos.y + pos.dirY * labelDist;
             const lineLen = labelDist - 13; // start just past the seat's own radius
@@ -421,6 +503,22 @@
         });
       }
 
+      // Selecting a table (clicking anywhere on it) is what reveals its
+      // resize/rotate handles and toolbar — see the .selected CSS rules.
+      // With several tables near each other, having every table's handles
+      // visible all the time got crowded and made it easy to grab the wrong
+      // one; only the selected table's controls show now. This runs before
+      // the move-vs-other-controls check below so that clicking a handle
+      // (on a table that wasn't selected yet) also selects it first, rather
+      // than being swallowed as a no-op.
+      wrap.addEventListener('mousedown', (e) => {
+        if (selectedTableId !== t.id){
+          selectedTableId = t.id;
+          document.querySelectorAll('.table-wrap.selected').forEach(el => el.classList.remove('selected'));
+          wrap.classList.add('selected');
+        }
+      });
+
       // dragging the whole table to reposition
       wrap.addEventListener('mousedown', (e) => {
         if (e.target.tagName === 'INPUT' || e.target.closest('.table-toolbar') ||
@@ -448,6 +546,14 @@
       wrap.querySelector('[data-act="del"]').addEventListener('click', () => {
         tables = tables.filter(x => x.id !== t.id);
         renderGuestList(); renderTables();
+      });
+      wrap.querySelector('[data-act="names"]').addEventListener('click', () => {
+        // Per-table, on purpose — so you can finish seating one table, hide
+        // its names to declutter, move on to the next, and still flip any
+        // single table's names back on later to double-check it without
+        // affecting every other table on the floor.
+        t.namesHidden = !t.namesHidden;
+        renderTables();
       });
       wrap.querySelector('[data-act="dup"]').addEventListener('click', () => {
         const copy = JSON.parse(JSON.stringify(t));
@@ -495,11 +601,6 @@
   document.getElementById('add-headtable').onclick = () => addTable('headtable');
   document.getElementById('add-dancefloor').onclick = () => addTable('dancefloor');
   document.getElementById('print-btn').onclick = () => window.print();
-  document.getElementById('toggle-names-btn').onclick = (e) => {
-    showNameLabels = !showNameLabels;
-    e.target.textContent = showNameLabels ? 'Hide Names' : 'Show Names';
-    renderTables();
-  };
   document.getElementById('guest-search').addEventListener('input', (e) => { searchQuery = e.target.value; renderGuestList(); });
   document.getElementById('save-btn').onclick = async () => {
     const btn = document.getElementById('save-btn');
