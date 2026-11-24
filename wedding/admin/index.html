@@ -67,11 +67,16 @@
   .family-name-toggle{ cursor:pointer; user-select:none; }
   .family-name-toggle:hover{ color:var(--wine); }
   .family-expand-row td{ background:#FBF9F2; padding:10px 16px 14px !important; display:block !important; text-align:left !important; width:auto !important; }
-  .member-detail-row{ display:flex; flex-wrap:wrap; gap:14px; align-items:center; padding:6px 0 6px 18px; font-size:12.5px; border-bottom:1px solid #eee6d4; }
-  .member-detail-row:last-child{ border-bottom:none; }
-  .member-detail-name{ font-weight:600; color:var(--indigo); min-width:140px; }
+  /* A responsive grid instead of one-member-per-line — on a laptop-width
+     screen this naturally fits 2-3 members per row side by side instead of
+     stacking everyone vertically and pushing the page down; on a narrow
+     screen it just falls back to one column. */
+  .member-detail-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:8px 16px; padding-left:18px; }
+  .member-detail-card{ font-size:12.5px; padding:8px 10px; background:#fff; border:1px solid #eee6d4; border-radius:8px; }
+  .member-detail-name{ font-weight:600; color:var(--indigo); margin-bottom:2px; }
   .member-detail-phone{ color:#8b8778; }
   .member-detail-pill{ color:#8b8778; }
+  .member-detail-opened{ font-size:11px; color:var(--wine); font-weight:600; padding:0 0 8px 18px; }
   .testing-card{ border:1.5px solid #ddd6c4; border-radius:10px; padding:14px 16px; margin-bottom:12px; }
   .testing-card-title{ font-weight:700; font-size:13.5px; color:var(--indigo); margin-bottom:4px; }
   .testing-card-desc{ font-size:12px; color:#8b8778; margin-bottom:10px; line-height:1.5; }
@@ -180,6 +185,7 @@
       <div class="summary-row">
         <div class="summary-chip"><b>${stats.totalGuests ?? 0}</b>On Guest List</div>
         <div class="summary-chip"><b>${stats.texted ?? 0}</b>Texted So Far</div>
+        <div class="summary-chip"><b>${stats.familiesOpened ?? 0}/${stats.totalFamilies ?? 0}</b>Families Opened Link</div>
         <div class="summary-chip"><b>${stats.ceremonyYes ?? 0}</b>Ceremony — Yes</div>
         <div class="summary-chip"><b>${stats.ceremonyNo ?? 0}</b>Ceremony — No</div>
         <div class="summary-chip"><b>${stats.receptionYes ?? 0}</b>Reception — Yes</div>
@@ -190,6 +196,8 @@
       <div style="font-size:11.5px;color:#8b8778;margin:-6px 0 14px;">
         "On Guest List" is everyone added so far, whether or not they've been texted yet.
         "Texted So Far" only counts people an invite or reminder has actually gone out to.
+        "Families Opened Link" counts a family once they've actually loaded their RSVP page
+        (one shared link per family, so this is counted per family, not per person).
       </div>
       ${waves.length ? `
         <table class="guest-table">
@@ -247,14 +255,24 @@
             const recYes = (f.members||[]).filter(m=>m.reception===true).length;
             const total = (f.members||[]).length;
             const isOpen = expandedFamilies.has(f.familyId);
-            const memberDetail = (f.members||[]).map(m => `
-              <div class="member-detail-row">
-                <span class="member-detail-name">${esc(m.name)}</span>
-                ${m.phone ? `<span class="member-detail-phone">${esc(m.phone)}</span>` : ''}
-                <span class="member-detail-pill">Ceremony: ${statusPill(m.ceremony)}</span>
-                <span class="member-detail-pill">Reception: ${statusPill(m.reception)}</span>
+            let openedLine = 'Hasn\'t opened their RSVP link yet';
+            if (f.viewedAt){
+              const d = new Date(f.viewedAt);
+              openedLine = 'Opened their RSVP link' + (isNaN(d) ? '' : ' on ' + d.toLocaleDateString());
+            }
+            const memberDetail = `
+              <div class="member-detail-opened">${esc(openedLine)}</div>
+              <div class="member-detail-grid">
+                ${(f.members||[]).map(m => `
+                  <div class="member-detail-card">
+                    <div class="member-detail-name">${esc(m.name)}</div>
+                    ${m.phone ? `<div class="member-detail-phone">${esc(m.phone)}</div>` : ''}
+                    <div class="member-detail-pill">Ceremony: ${statusPill(m.ceremony)}</div>
+                    <div class="member-detail-pill">Reception: ${statusPill(m.reception)}</div>
+                  </div>
+                `).join('')}
               </div>
-            `).join('');
+            `;
             return `
             <tr class="family-row" data-id="${esc(f.familyId)}">
               <td data-label="Family"><span class="family-name-toggle">${isOpen ? '&#9662;' : '&#9656;'} ${esc(f.familyName)} (${total})</span></td>
