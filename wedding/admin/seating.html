@@ -421,6 +421,16 @@
             seat.addEventListener('dragstart', (e) => {
               e.stopPropagation();
               e.dataTransfer.setData('text/plain', JSON.stringify({ guestId, fromTableId: t.id, fromSeatIndex: i }));
+              // The seat lives inside a rotated table box, and browsers can't
+              // snapshot a drag ghost from an element with a transformed
+              // ancestor -- it comes out blank even though the drag itself
+              // still works. Give it an explicit, unrotated ghost instead.
+              const ghost = document.createElement('div');
+              ghost.textContent = initials(g.name);
+              ghost.style.cssText = 'position:fixed; top:-999px; left:-999px; width:26px; height:26px; border-radius:50%; background:var(--wine); color:#fff; font-weight:700; font-size:9.5px; display:flex; align-items:center; justify-content:center;';
+              document.body.appendChild(ghost);
+              e.dataTransfer.setDragImage(ghost, 13, 13);
+              setTimeout(() => ghost.remove(), 0);
             });
           }
 
