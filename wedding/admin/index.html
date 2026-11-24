@@ -99,6 +99,7 @@
     function checkPass(){
       if (document.getElementById('pass').value === ADMIN_PASSCODE){
         adminUnlocked = true;
+        sessionStorage.setItem('site_admin_ok', '1'); // shared single sign-on across engagement admin, wedding admin, and the seating chart
         renderDashboard();
       } else {
         alert('Incorrect passcode.');
@@ -327,7 +328,12 @@ John Smith&#9;+13125551235&#9;Smith Family&#9;1&#9;2027-03-01"></textarea>
     `;
   }
 
-  renderLogin();
+  if (sessionStorage.getItem('site_admin_ok') === '1'){
+    adminUnlocked = true;
+    renderDashboard();
+  } else {
+    renderLogin();
+  }
 })();
 </script>
 </body>
