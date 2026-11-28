@@ -25,41 +25,80 @@ body{
 
 /* ---- First-load envelope intro ----
    A one-time "opening the invite" moment: a wax seal sits over a paper
-   envelope flap; tapping it (or waiting a couple seconds) melts the seal
-   away and lifts the flap off-screen, revealing the real page underneath,
-   which is already rendered behind it the whole time. Shown once per
-   browser session (see sessionStorage check in index.html). */
+   envelope; tapping it (or waiting a couple seconds) cracks the seal in
+   half, the flap swings open on a real 3D hinge like a lid, and the
+   envelope's body drops away a beat later, revealing the real page
+   underneath, which is already rendered behind it the whole time. Shown
+   once per browser session (see sessionStorage check in index.html). */
 .intro-overlay{
   position:fixed; inset:0; z-index:9999;
   display:flex; align-items:center; justify-content:center;
-  background: radial-gradient(ellipse at 50% 38%, #f4ecd4 0%, #ecdfbd 55%, #ddc99d 100%);
+  background: #ddc99d;
   cursor:pointer;
-  transition: opacity .7s ease;
+  transition: opacity .6s ease;
 }
 .intro-overlay.is-hidden{ opacity:0; pointer-events:none; }
+
+/* Both the pocket and the flap below layer in a subtle fibrous paper grain,
+   built with an SVG noise filter instead of an image file -- tinted tan and
+   kept faint (multiply blend) so it reads as texture, not static. */
+.intro-pocket{
+  position:absolute; inset:0;
+  background-color: #e3d2a6;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.45  0 0 0 0 0.37  0 0 0 0 0.24  0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse at 50% 15%, rgba(255,255,255,0.3), transparent 60%);
+  background-size: 260px 260px, 100% 100%;
+  background-blend-mode: multiply, normal;
+  transition: transform .7s ease .65s, opacity .7s ease .65s;
+}
+.intro-overlay.is-opening .intro-pocket{ transform: translateY(16%); opacity:0; }
 .intro-flap{
-  position:absolute; top:0; left:0; right:0; height:58%;
-  background: linear-gradient(135deg, #f0e4c4, #e2d2a8 55%, #d6c091);
+  position:absolute; top:0; left:0; right:0; height:56%;
+  background-color: #ecdfbd;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.45  0 0 0 0 0.37  0 0 0 0 0.24  0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    linear-gradient(135deg, #f2e6c8, #e2d2a8 55%, #d6c091);
+  background-size: 260px 260px, 100% 100%;
+  background-blend-mode: multiply, normal;
   clip-path: polygon(0 0, 100% 0, 50% 100%);
   box-shadow: 0 10px 30px rgba(42,30,10,0.14);
   transform-origin: top center;
-  transition: transform 1s cubic-bezier(.6,-0.15,.2,1), opacity .8s ease;
+  backface-visibility: hidden;
 }
-.intro-overlay.is-opening .intro-flap{ transform: translateY(-120%) rotate(-3deg); opacity:0; }
+.intro-overlay.is-opening .intro-flap{
+  animation: intro-flap-open 1.1s ease-in forwards;
+}
+@keyframes intro-flap-open{
+  /* backface-visibility above means this genuinely disappears the instant
+     it rotates past vertical (-90deg) -- real paper flipping edge-on to
+     the viewer would do the same. The trick is spending most of the
+     animation's time BEFORE that point, so the swing itself reads clearly
+     instead of the flap vanishing almost as soon as it starts moving. */
+  0%   { transform: perspective(1000px) rotateX(0deg); }
+  70%  { transform: perspective(1000px) rotateX(-88deg); }
+  100% { transform: perspective(1000px) rotateX(-170deg); }
+}
+.intro-seal-wrap{
+  position:relative; z-index:2; width:104px; height:104px;
+}
 .intro-seal{
-  position:relative; z-index:2;
-  width:104px; height:104px;
+  position:absolute; inset:0;
   border-radius:46% 54% 52% 48% / 48% 44% 56% 52%;
   background: radial-gradient(circle at 34% 30%, #9a3545, var(--wine) 55%, #46121b 100%);
   box-shadow: 0 8px 20px rgba(20,8,10,0.32), inset 0 2px 4px rgba(255,255,255,0.28), inset 0 -5px 11px rgba(0,0,0,0.38);
   display:flex; align-items:center; justify-content:center;
-  transition: transform .55s cubic-bezier(.6,-0.3,.3,1.5), opacity .45s ease;
+  transition: transform .45s cubic-bezier(.5,0,.3,1), opacity .4s ease;
 }
-.intro-overlay.is-opening .intro-seal{ transform: scale(0.2) rotate(8deg); opacity:0; }
+.intro-seal.half-left{ clip-path: inset(0 50% 0 0); }
+.intro-seal.half-right{ clip-path: inset(0 0 0 50%); }
+.intro-overlay.is-opening .intro-seal.half-left{ transform: translate(-22px,-10px) rotate(-16deg); opacity:0; }
+.intro-overlay.is-opening .intro-seal.half-right{ transform: translate(22px,-6px) rotate(14deg); opacity:0; }
 .intro-seal-mono{
   font-family:'Cormorant Garamond',serif; font-style:italic; font-weight:500;
   font-size:30px; letter-spacing:0.5px; color:#edced2;
   text-shadow: 0 1px 0 rgba(255,255,255,0.25), 0 -1px 1px rgba(0,0,0,0.45);
+  white-space:nowrap;
 }
 .intro-seal-mono .amp{ font-size:17px; margin:0 3px; opacity:.8; }
 .intro-tap-hint{

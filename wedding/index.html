@@ -8,6 +8,7 @@
 <link rel="icon" type="image/png" href="../engagement/favicon.png">
 <link rel="apple-touch-icon" href="../engagement/favicon.png">
 <link rel="stylesheet" href="style.css">
+<meta name="theme-color" id="theme-color-meta" content="#ddc99d">
 
 <meta property="og:title" content="Maro & George's Wedding">
 <meta property="og:description" content="You're invited! June 19, 2027. Tap to RSVP.">
@@ -65,9 +66,11 @@
   function buildShell(){
     app.innerHTML = `
       <div id="intro-overlay" class="intro-overlay" aria-hidden="true">
+        <div class="intro-pocket"></div>
         <div class="intro-flap"></div>
-        <div class="intro-seal">
-          <span class="intro-seal-mono">${EVENT.coupleA[0]}<span class="amp">&amp;</span>${EVENT.coupleB[0]}</span>
+        <div class="intro-seal-wrap">
+          <div class="intro-seal half-left"><span class="intro-seal-mono">${EVENT.coupleA[0]}<span class="amp">&amp;</span>${EVENT.coupleB[0]}</span></div>
+          <div class="intro-seal half-right"><span class="intro-seal-mono">${EVENT.coupleA[0]}<span class="amp">&amp;</span>${EVENT.coupleB[0]}</span></div>
         </div>
         <div class="intro-tap-hint">Tap to open</div>
       </div>
@@ -330,6 +333,15 @@
   }
 
   // ---- BOOT -----------------------------------------------------------
+  // Safari tints its own address bar / home-indicator area to match
+  // whatever color is showing at the top and bottom of the page. While the
+  // envelope is up that needs to be its tan tone, not the site's navy --
+  // otherwise the status bar reads as a jarring navy stripe over tan.
+  function setThemeColor(hex){
+    const meta = document.getElementById('theme-color-meta');
+    if (meta) meta.setAttribute('content', hex);
+  }
+
   function playIntro(){
     const overlay = document.getElementById('intro-overlay');
     if (!overlay) return;
@@ -337,10 +349,15 @@
     // later (e.g. from Travel) shouldn't see the envelope open every time.
     // Visiting with ?replayIntro=1 on the end of the link bypasses this, so
     // it can be replayed for testing without clearing the whole browser tab.
-    if (sessionStorage.getItem('wedding_intro_seen') === '1' && !params.has('replayIntro')) { overlay.remove(); return; }
+    if (sessionStorage.getItem('wedding_intro_seen') === '1' && !params.has('replayIntro')) {
+      overlay.remove();
+      setThemeColor('#1B2340');
+      return;
+    }
     sessionStorage.setItem('wedding_intro_seen', '1');
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       overlay.remove();
+      setThemeColor('#1B2340');
       return;
     }
     let opened = false;
@@ -348,10 +365,13 @@
       if (opened) return;
       opened = true;
       overlay.classList.add('is-opening');
+      // Matches the flap (1.1s) and pocket (.65s delay + .7s) animations in
+      // style.css finishing, then the overlay's own .6s fade-out on top.
       setTimeout(() => {
         overlay.classList.add('is-hidden');
-        setTimeout(() => overlay.remove(), 750);
-      }, 850);
+        setThemeColor('#1B2340');
+        setTimeout(() => overlay.remove(), 650);
+      }, 1400);
     }
     overlay.addEventListener('click', openEnvelope);
     setTimeout(openEnvelope, 2200); // opens on its own if nobody taps
