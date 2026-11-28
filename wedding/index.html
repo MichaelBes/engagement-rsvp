@@ -64,6 +64,13 @@
   // ---- SHELL (built once; dynamic content only replaces #app-card) --------
   function buildShell(){
     app.innerHTML = `
+      <div id="intro-overlay" class="intro-overlay" aria-hidden="true">
+        <div class="intro-flap"></div>
+        <div class="intro-seal">
+          <span class="intro-seal-mono">${EVENT.coupleA[0]}<span class="amp">&amp;</span>${EVENT.coupleB[0]}</span>
+        </div>
+        <div class="intro-tap-hint">Tap to open</div>
+      </div>
       <div class="site-header">
         <div class="eyebrow">You're Invited</div>
         <h1 class="names">${EVENT.coupleA}<span class="ampersand">&amp;</span>${EVENT.coupleB}</h1>
@@ -323,8 +330,34 @@
   }
 
   // ---- BOOT -----------------------------------------------------------
+  function playIntro(){
+    const overlay = document.getElementById('intro-overlay');
+    if (!overlay) return;
+    // Once per browser session -- a guest navigating back to this page
+    // later (e.g. from Travel) shouldn't see the envelope open every time.
+    if (sessionStorage.getItem('wedding_intro_seen') === '1') { overlay.remove(); return; }
+    sessionStorage.setItem('wedding_intro_seen', '1');
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      overlay.remove();
+      return;
+    }
+    let opened = false;
+    function openEnvelope(){
+      if (opened) return;
+      opened = true;
+      overlay.classList.add('is-opening');
+      setTimeout(() => {
+        overlay.classList.add('is-hidden');
+        setTimeout(() => overlay.remove(), 750);
+      }, 850);
+    }
+    overlay.addEventListener('click', openEnvelope);
+    setTimeout(openEnvelope, 2200); // opens on its own if nobody taps
+  }
+
   function boot(){
     buildShell();
+    playIntro();
     const id = params.get('id');
     if (id) {
       loadFamily(id);

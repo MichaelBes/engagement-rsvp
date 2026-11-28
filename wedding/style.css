@@ -23,6 +23,56 @@ body{
   padding: 48px 20px 60px;
 }
 
+/* ---- First-load envelope intro ----
+   A one-time "opening the invite" moment: a wax seal sits over a paper
+   envelope flap; tapping it (or waiting a couple seconds) melts the seal
+   away and lifts the flap off-screen, revealing the real page underneath,
+   which is already rendered behind it the whole time. Shown once per
+   browser session (see sessionStorage check in index.html). */
+.intro-overlay{
+  position:fixed; inset:0; z-index:9999;
+  display:flex; align-items:center; justify-content:center;
+  background: radial-gradient(ellipse at 50% 38%, #f4ecd4 0%, #ecdfbd 55%, #ddc99d 100%);
+  cursor:pointer;
+  transition: opacity .7s ease;
+}
+.intro-overlay.is-hidden{ opacity:0; pointer-events:none; }
+.intro-flap{
+  position:absolute; top:0; left:0; right:0; height:58%;
+  background: linear-gradient(135deg, #f0e4c4, #e2d2a8 55%, #d6c091);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  box-shadow: 0 10px 30px rgba(42,30,10,0.14);
+  transform-origin: top center;
+  transition: transform 1s cubic-bezier(.6,-0.15,.2,1), opacity .8s ease;
+}
+.intro-overlay.is-opening .intro-flap{ transform: translateY(-120%) rotate(-3deg); opacity:0; }
+.intro-seal{
+  position:relative; z-index:2;
+  width:104px; height:104px;
+  border-radius:46% 54% 52% 48% / 48% 44% 56% 52%;
+  background: radial-gradient(circle at 34% 30%, #9a3545, var(--wine) 55%, #46121b 100%);
+  box-shadow: 0 8px 20px rgba(20,8,10,0.32), inset 0 2px 4px rgba(255,255,255,0.28), inset 0 -5px 11px rgba(0,0,0,0.38);
+  display:flex; align-items:center; justify-content:center;
+  transition: transform .55s cubic-bezier(.6,-0.3,.3,1.5), opacity .45s ease;
+}
+.intro-overlay.is-opening .intro-seal{ transform: scale(0.2) rotate(8deg); opacity:0; }
+.intro-seal-mono{
+  font-family:'Cormorant Garamond',serif; font-style:italic; font-weight:500;
+  font-size:30px; letter-spacing:0.5px; color:#edced2;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.25), 0 -1px 1px rgba(0,0,0,0.45);
+}
+.intro-seal-mono .amp{ font-size:17px; margin:0 3px; opacity:.8; }
+.intro-tap-hint{
+  position:absolute; bottom:16%; left:0; right:0; text-align:center;
+  font-size:11px; letter-spacing:0.22em; text-transform:uppercase;
+  color:#8b7a52; opacity:0; animation: intro-hint-fade 1s ease 1s forwards;
+}
+.intro-overlay.is-opening .intro-tap-hint{ animation:none; opacity:0; }
+@keyframes intro-hint-fade{ to{ opacity:0.85; } }
+@media (prefers-reduced-motion: reduce){
+  .intro-overlay{ display:none !important; }
+}
+
 /* ---- Shared nav / header ---- */
 .site-header{ width:100%; max-width:1100px; text-align:center; margin-bottom: 30px; }
 .eyebrow{ text-transform:uppercase; letter-spacing:0.22em; font-size:11px; color:var(--gold-soft); font-weight:600; margin:0 0 8px; }
