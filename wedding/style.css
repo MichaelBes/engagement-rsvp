@@ -24,59 +24,95 @@ body{
 }
 
 /* ---- First-load envelope intro ----
-   A one-time "opening the invite" moment: a wax seal sits over a paper
-   envelope; tapping it (or waiting a couple seconds) opens it -- quickly
-   and simply, like lifting an envelope flap and pulling it away, not a
-   slow choreographed animation -- revealing the real page underneath,
-   which is already rendered behind it the whole time. Shown once per
+   A one-time "opening the invite" moment, modeled on a real envelope being
+   opened: a wax seal sits at the point of the flap; on open the seal lifts
+   out of the way, the flap peels back on a 3D hinge along its top edge
+   (foreshortening as it turns edge-on, the way folded paper does), a
+   letter rises out of the pocket, and the envelope body slides away --
+   revealing the real page underneath, which is already rendered behind it
+   the whole time. The whole sequence runs under a second. Shown once per
    browser session (see sessionStorage check in index.html). */
 .intro-overlay{
   position:fixed; inset:0; z-index:9999;
   display:flex; align-items:center; justify-content:center;
   background: #ddc99d;
   cursor:pointer;
-  transition: opacity .35s ease;
+  perspective: 1000px;
+  transition: opacity .3s ease;
 }
 .intro-overlay.is-hidden{ opacity:0; pointer-events:none; }
 
-/* Both the pocket and the flap below layer in a subtle fibrous paper grain,
-   built with an SVG noise filter instead of an image file -- tinted tan and
-   kept faint (multiply blend) so it reads as texture, not static. They
-   move together as one simple unit on open: a quick lift-and-fade, not a
-   hinge or a multi-stage sequence. */
-.intro-pocket, .intro-flap{
-  transition: transform .45s cubic-bezier(.4,0,.2,1), opacity .4s ease;
-}
-.intro-overlay.is-opening .intro-pocket,
-.intro-overlay.is-opening .intro-flap{ transform: translateY(-6%); opacity:0; }
+/* Envelope body (the "pocket"): tan paper with a fibrous grain plus a
+   faint embossed art-nouveau floral sweep, both built with SVG filters
+   instead of image files. Slides down and away once the flap is open. */
 .intro-pocket{
-  position:absolute; inset:0;
+  position:absolute; inset:0; z-index:0;
   background-color: #e3d2a6;
   background-image:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.45  0 0 0 0 0.37  0 0 0 0 0.24  0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27640%27%20height%3D%27640%27%20viewBox%3D%270%200%20640%20640%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27%23a68c4f%27%20stroke-width%3D%272.4%27%20opacity%3D%270.16%27%3E%3Cpath%20d%3D%27M320%20660C300%20460%20220%20300%2060%20140%27%2F%3E%3Cpath%20d%3D%27M320%20660C320%20440%20280%20260%20220%2060%27%2F%3E%3Cpath%20d%3D%27M320%20660C340%20440%20380%20260%20440%2060%27%2F%3E%3Cpath%20d%3D%27M320%20660C360%20460%20440%20300%20600%20160%27%2F%3E%3Cpath%20d%3D%27M-20%20520C120%20420%20200%20360%20320%20300%20440%20240%20520%20180%20660%2080%27%2F%3E%3Cpath%20d%3D%27M-20%20300C140%20260%20240%20200%20320%20120%20400%2040%20520%20-20%20660%20-60%27%2F%3E%3C%2Fg%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27%23f7eed6%27%20stroke-width%3D%271.6%27%20opacity%3D%270.3%27%20transform%3D%27translate%282.5%202.5%29%27%3E%3Cpath%20d%3D%27M320%20660C300%20460%20220%20300%2060%20140%27%2F%3E%3Cpath%20d%3D%27M320%20660C320%20440%20280%20260%20220%2060%27%2F%3E%3Cpath%20d%3D%27M320%20660C340%20440%20380%20260%20440%2060%27%2F%3E%3Cpath%20d%3D%27M320%20660C360%20460%20440%20300%20600%20160%27%2F%3E%3Cpath%20d%3D%27M-20%20520C120%20420%20200%20360%20320%20300%20440%20240%20520%20180%20660%2080%27%2F%3E%3Cpath%20d%3D%27M-20%20300C140%20260%20240%20200%20320%20120%20400%2040%20520%20-20%20660%20-60%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"),
     radial-gradient(ellipse at 50% 15%, rgba(255,255,255,0.3), transparent 60%);
-  background-size: 260px 260px, 100% 100%;
-  background-blend-mode: multiply, normal;
+  background-size: 260px 260px, cover, 100% 100%;
+  background-blend-mode: multiply, normal, normal;
+  transition: transform .35s ease .5s, opacity .3s ease .5s;
 }
+.intro-overlay.is-opening .intro-pocket{ transform: translateY(5%); opacity:0; }
+
+/* The letter tucked inside the envelope: a cream card that peeks out below
+   the flap's point while closed, then rises out of the pocket as the flap
+   lifts, before fading away with the rest of the overlay. */
+.intro-letter{
+  position:absolute; z-index:1; left:50%; top:15%;
+  width:min(74vw, 320px); height:66%;
+  transform: translate(-50%, 9%);
+  background:#f8f2df;
+  border:1px solid #c9a86a;
+  box-shadow: 0 0 0 4px #f8f2df, 0 0 0 5px #c9a86a, 0 14px 30px rgba(42,30,10,0.25);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+  text-align:center; padding:20px;
+  transition: transform .5s cubic-bezier(.4,0,.2,1) .15s, opacity .3s ease .55s;
+}
+.intro-overlay.is-opening .intro-letter{ transform: translate(-50%, -11%); opacity:0; }
+.intro-letter-mono{ font-family:'Cormorant Garamond',serif; font-style:italic; font-weight:600; font-size:46px; line-height:1; color:#7c2635; }
+.intro-letter-mono .amp{ font-size:30px; padding:0 4px; }
+.intro-letter-line{ font-size:11px; letter-spacing:0.24em; text-transform:uppercase; color:#8b7a52; font-weight:600; }
+.intro-letter-date{ font-family:'Cormorant Garamond',serif; font-style:italic; font-size:19px; color:#5a4a28; }
+
+/* The flap: a triangle hinged along its top edge. It carries the same
+   embossed pattern as the pocket (slightly lighter paper). On open it
+   rotates back around that hinge -- a visible peel, foreshortening through
+   edge-on, then gone (backface hidden) once past vertical. */
+.intro-flap-wrap{
+  position:absolute; top:0; left:0; right:0; height:56%; z-index:2;
+  transform-origin: top center;
+  transition: transform .55s cubic-bezier(.45,0,.25,1) .08s;
+}
+.intro-overlay.is-opening .intro-flap-wrap{ transform: rotateX(170deg); }
 .intro-flap{
-  position:absolute; top:0; left:0; right:0; height:56%;
+  position:absolute; inset:0;
   background-color: #ecdfbd;
   background-image:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.45  0 0 0 0 0.37  0 0 0 0 0.24  0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27640%27%20height%3D%27640%27%20viewBox%3D%270%200%20640%20640%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27%23a68c4f%27%20stroke-width%3D%272.4%27%20opacity%3D%270.16%27%3E%3Cpath%20d%3D%27M320%20660C300%20460%20220%20300%2060%20140%27%2F%3E%3Cpath%20d%3D%27M320%20660C320%20440%20280%20260%20220%2060%27%2F%3E%3Cpath%20d%3D%27M320%20660C340%20440%20380%20260%20440%2060%27%2F%3E%3Cpath%20d%3D%27M320%20660C360%20460%20440%20300%20600%20160%27%2F%3E%3Cpath%20d%3D%27M-20%20520C120%20420%20200%20360%20320%20300%20440%20240%20520%20180%20660%2080%27%2F%3E%3Cpath%20d%3D%27M-20%20300C140%20260%20240%20200%20320%20120%20400%2040%20520%20-20%20660%20-60%27%2F%3E%3C%2Fg%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27%23f7eed6%27%20stroke-width%3D%271.6%27%20opacity%3D%270.3%27%20transform%3D%27translate%282.5%202.5%29%27%3E%3Cpath%20d%3D%27M320%20660C300%20460%20220%20300%2060%20140%27%2F%3E%3Cpath%20d%3D%27M320%20660C320%20440%20280%20260%20220%2060%27%2F%3E%3Cpath%20d%3D%27M320%20660C340%20440%20380%20260%20440%2060%27%2F%3E%3Cpath%20d%3D%27M320%20660C360%20460%20440%20300%20600%20160%27%2F%3E%3Cpath%20d%3D%27M-20%20520C120%20420%20200%20360%20320%20300%20440%20240%20520%20180%20660%2080%27%2F%3E%3Cpath%20d%3D%27M-20%20300C140%20260%20240%20200%20320%20120%20400%2040%20520%20-20%20660%20-60%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"),
     linear-gradient(135deg, #f2e6c8, #e2d2a8 55%, #d6c091);
-  background-size: 260px 260px, 100% 100%;
-  background-blend-mode: multiply, normal;
+  background-size: 260px 260px, cover, 100% 100%;
+  background-blend-mode: multiply, normal, normal;
   clip-path: polygon(0 0, 100% 0, 50% 100%);
+  backface-visibility:hidden; -webkit-backface-visibility:hidden;
   box-shadow: 0 10px 30px rgba(42,30,10,0.14);
 }
-/* The wax seal itself -- an SVG so the irregular "wax drip" edge, the
-   embossed monogram, and the drop shadow all follow the actual seal shape
-   instead of a plain circle with a shadow still boxed to its square frame. */
+/* The wax seal -- one SVG so the irregular "wax drip" edge, the glossy
+   highlight, the embossed monogram, and the drop shadow all follow the
+   actual seal shape instead of a plain circle with a shadow still boxed
+   to its square frame. On open it just lifts and fades out of the way --
+   no cracking -- while the flap peels back underneath it. */
 .intro-seal-wrap{
-  position:relative; z-index:2; width:112px; height:112px;
-  transition: transform .3s cubic-bezier(.5,0,.3,1), opacity .3s ease;
+  position:absolute; z-index:3; left:50%; top:54%;
+  width:112px; height:112px;
+  transform: translate(-50%,-50%);
+  transition: transform .25s cubic-bezier(.5,0,.3,1), opacity .25s ease;
 }
-.intro-overlay.is-opening .intro-seal-wrap{ transform: scale(0.75); opacity:0; }
+.intro-overlay.is-opening .intro-seal-wrap{ transform: translate(-50%,-58%) scale(.9); opacity:0; }
 .intro-seal-svg{ width:100%; height:100%; overflow:visible; }
 .intro-tap-hint{
   position:absolute; bottom:16%; left:0; right:0; text-align:center;
