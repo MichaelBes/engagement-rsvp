@@ -335,7 +335,9 @@
     if (!overlay) return;
     // Once per browser session -- a guest navigating back to this page
     // later (e.g. from Travel) shouldn't see the envelope open every time.
-    if (sessionStorage.getItem('wedding_intro_seen') === '1') { overlay.remove(); return; }
+    // Visiting with ?replayIntro=1 on the end of the link bypasses this, so
+    // it can be replayed for testing without clearing the whole browser tab.
+    if (sessionStorage.getItem('wedding_intro_seen') === '1' && !params.has('replayIntro')) { overlay.remove(); return; }
     sessionStorage.setItem('wedding_intro_seen', '1');
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       overlay.remove();
